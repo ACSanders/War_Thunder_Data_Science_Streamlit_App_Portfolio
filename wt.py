@@ -33,7 +33,7 @@ with logo_col:
 st.header("Vehicle Trends")
 
 # Load and cache the DataFrame
-@st.cache  # You can upgrade Streamlit to use @st.cache_data for newer versions
+@st.cache_data  # You can upgrade Streamlit to use @st.cache_data for newer versions
 def load_data():
     return pd.read_csv("full_data.csv") # full_data is available in my Github repo
 
