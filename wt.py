@@ -401,7 +401,7 @@ selected_br_data = clustering_results.get(selected_br)
 #show data and plot scatter plot
 if selected_br_data is not None and not selected_br_data.empty:
     st.dataframe(selected_br_data)
-    st.write("Clustering completed for BR:", selected_br, use_container_width=True)
+    st.write("Clustering completed for BR:", selected_br)
     
     fig = plot_scatter_plot(
         selected_br_data,
