@@ -15,22 +15,22 @@ title_col, logo_col = st.columns(2)
 
 with title_col:
     st.write("""
-            # War Thunder Science :boom:
-            ##### Vehicle Performance and Game Statistics Using Bayesian A/B Testing, K-Means Clustering, and Data Science :chart_with_upwards_trend:
+            # War Thunder Data Science App :boom:
+            **Applying Bayesian A/B Testing, K-Means Clustering, and Statistical Techniques to Analyze Vehicle Performance and Game Trends :chart_with_upwards_trend:
             """)
-    st.write('Developed by **A. Sanders** - also known as, *DrKnoway*')
+    st.write('Developed by **A. Sanders** - also known as *DrKnoway*')
 
 with logo_col:
-    st.empty()  # Create an empty space
+    st.empty()  # Create an empty space to help formmat the image location
     st.image("knoway_eye.png", width=150)
 
-
+# header for the section that generates line charts for vehicle performance over time
 st.header("Vehicle Trends")
 
 # Load and cache the DataFrame
 @st.cache_data  # You can upgrade Streamlit to use @st.cache_data for newer versions
 def load_data():
-    return pd.read_csv("full_data.csv")
+    return pd.read_csv("full_data.csv") # full_data is available in my Github repo
 
 # Load the data
 data = load_data()
@@ -38,37 +38,37 @@ data = load_data()
 # Make a copy of the DataFrame
 df_copy = data.copy()
 
-# Ensure 'date' column is in datetime format for the entire DataFrame
+# Ensure 'date' column is in datetime format
 df_copy['date'] = pd.to_datetime(df_copy['date'])
 
 # Create columns for the dropdown menus
 col1, col2, col3, col4 = st.columns(4)
 
-# 1st dropdown for Vehicle Type
+# 1st dropdown menu for Vehicle Type
 with col1:
     vehicle_types = df_copy['cls'].unique()
     selected_vehicle_types = st.selectbox("Vehicle Type", vehicle_types)
 
-# Filter the DataFrame based on the selected Vehicle Type
+# Filter df_copy based on the selected vehicle type (cls in the dataset)
 filtered_by_type_df = df_copy[df_copy['cls'] == selected_vehicle_types]
 
-# 2nd dropdown for Nation
+# 2nd dropdown for selecting the Nation
 with col2:
     nations = filtered_by_type_df['nation'].unique()
     selected_nations = st.multiselect("Nation", nations, default=[nations[0]] if nations.size > 0 else [])
 
-# Filter the DataFrame based on selected Nation
+# Filter based on selected nation
 filtered_by_nation_df = filtered_by_type_df[filtered_by_type_df['nation'].isin(selected_nations)]
 
-# 3rd dropdown for BR
+# 3rd dropdown for BR (i.e., battle rating in the game)
 with col3:
     br_values = filtered_by_nation_df['rb_br'].unique()
     selected_br = st.multiselect("BR", sorted(br_values, reverse=True), default=[sorted(br_values, reverse=True)[0]] if br_values.size > 0 else [])
 
-# Filter the DataFrame based on selected BR
+# Filter based on selected BR
 filtered_by_br_df = filtered_by_nation_df[filtered_by_nation_df['rb_br'].isin(selected_br)]
 
-# 4th dropdown for Metric
+# 4th dropdown for the metric to visualize
 with col4:
     metrics = [
         'rb_win_rate',
@@ -80,11 +80,11 @@ with col4:
     ]
     selected_metric = st.selectbox("Metric", metrics, index=0)  # Defaults to the first metric
 
-# 5th dropdown for Vehicle Name (filtered based on Vehicle Type and Nation)
+# 5th dropdown for Vehicle Name - filtered based on type and nation selected
 vehicle_names = filtered_by_br_df['name'].unique()
 selected_vehicle_names = st.multiselect("Vehicle Name", vehicle_names, default=list(vehicle_names) if vehicle_names.size > 0 else [])
 
-# Filter the DataFrame based on user selections
+# Filter the df_copy datafraem based on user selections from the dropdown menus
 final_filtered_df = df_copy[
     (df_copy['cls'] == selected_vehicle_types) &
     (df_copy['nation'].isin(selected_nations)) &
@@ -92,10 +92,10 @@ final_filtered_df = df_copy[
     (df_copy['name'].isin(selected_vehicle_names))
 ]
 
-# Sort the DataFrame by date and get unique dates, formatted as strings (MM/DD/YY)
+# Sort by date and get unique dates - ensure formatted dates using dt.strftime()
 unique_dates = sorted(df_copy['date'].dt.strftime('%m/%d/%y').unique())
 
-# Add a date range select slider to Streamlit
+# Add the date range select slider
 date_range = st.select_slider(
     "Select date range:",
     options=unique_dates,
@@ -106,121 +106,125 @@ date_range = st.select_slider(
 # Convert selected start and end dates back to datetime for filtering
 start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
 
-# Filter the final DataFrame based on the date range
+# Filter based on the date range selected
 final_filtered_df = final_filtered_df[
     (final_filtered_df['date'] >= start_date) & 
     (final_filtered_df['date'] <= end_date)
 ]
 
-# Display the number of rows in the filtered DataFrame for debugging
-st.write(f"Filtered DataFrame rows: {final_filtered_df.shape[0]}")  # Display row count
+# show row count in the filtered DataFrame - used for debugging - un-comment if needed
+# st.write(f"Filtered DataFrame rows: {final_filtered_df.shape[0]}") 
 
-# Check if there are any rows to plot
+# plot the rows if there is data
 if final_filtered_df.shape[0] > 0:
-    # Create a line plot with Plotly Express for each vehicle
+    # Create line plot
     fig = px.line(final_filtered_df, 
                   x='date', 
                   y=selected_metric, 
-                  color='name',  # This will create separate lines for each vehicle
+                  color='name',  # this will create separate lines for each vehicle
                   title='Performance Over Time', 
                   labels={'date': 'Date', selected_metric: selected_metric}, 
                   hover_data=['name', 'nation', 'rb_br'])
     
     fig.update_layout(template='plotly')
 
-    # Customize further if needed
-    fig.update_traces(line=dict(width=2), mode='lines+markers')  # Set line width and add markers
-    fig.update_layout(title=dict(font=dict(size=24)), xaxis_title=dict(font=dict(size=18)), yaxis_title=dict(font=dict(size=18)))  # Update titles
+    fig.update_traces(line=dict(width=2), mode='lines+markers')  
+    fig.update_layout(title=dict(font=dict(size=24)), xaxis_title=dict(font=dict(size=18)), yaxis_title=dict(font=dict(size=18))) 
     
-    # Show the figure, fill the container width
-    st.plotly_chart(fig, use_container_width=True)  # Add use_container_width=True to fill the container
+    # Show the plot and fill the container width (use_container_width = True) -- stylistic/helps format the plot on the screen
+    st.plotly_chart(fig, use_container_width=True) 
 else:
-    st.write("No data available for the selected filters.")
+    st.write("No data available") # display this message if the selections and resulting dataframe lack any data
 
+####################################################################################################################################
+
+# Heatmap of Aggregated Win Rates
+
+####################################################################################################################################
 
 st.subheader("Aggregated Win Rates by Nation")
 
 # copy of our data
 wr_df = data.copy()
 
-# Ensure 'date' column is in datetime format
+# convert date column in datetime format
 wr_df['date'] = pd.to_datetime(wr_df['date'])
 
 # Get unique vehicle types from the 'cls' column
 vehicle_types = wr_df['cls'].unique()
 
-# Add a dropdown menu to select the vehicle type
+# Add dropdown menu to select the vehicle type
 selected_vehicle_type = st.selectbox(
     "Select Vehicle Type:",
     options=vehicle_types,
     index=0  # Optional: Sets the default selection to the first type
 )
 
-# Sort the DataFrame by date and get unique dates, formatted as strings (MM/DD/YY)
+# Sort by date and get unique dates - make sure it is formatted correctly (MM/DD/YY)
 unique_dates = sorted(wr_df['date'].dt.strftime('%m/%d/%y').unique())
 
-# Add a date range select slider to Streamlit
+# date range slider - additional filtering by date
 date_range = st.select_slider(
     "Select date range:",
     options=unique_dates,
     value=(unique_dates[0], unique_dates[-1])
 )
 
-# Convert selected start and end dates back to datetime for filtering
+# convert start and end dates back to datetime for filtering
 start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
 
-# Filter the DataFrame based on the selected vehicle type and date range
+# Filter for selected type and date
 filtered_df = wr_df[
     (wr_df['cls'] == selected_vehicle_type) &
     (wr_df['date'] >= start_date) & 
     (wr_df['date'] <= end_date)
 ]
 
-# Continue with your processing for the filtered DataFrame
-filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
+# make a br_range variable - this will be a more generic/broad category
+filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int) # e.g., 1.0, 1.3, and 1.7 will all be 1 for br_range (a broad category)
 agg_wr_df = filtered_df.groupby(['nation', 'br_range']).rb_win_rate.mean().reset_index()
 agg_wr_pivot = agg_wr_df.pivot(index='nation', columns='br_range', values='rb_win_rate')
 
-# Plot heatmap with custom text annotations for displaying rounded values
+# create heatmap
 fig_wr_heatmap = px.imshow(
     agg_wr_pivot,
     color_continuous_scale='RdBu',
     labels=dict(x='BR Range', y='Nation', color='rb_win_rate')
 )
 
-# Display all x-axis ticks
+# let us show all x-axis ticks
 fig_wr_heatmap.update_xaxes(tickmode='linear')
 
-# Add annotations with rounded values
 fig_wr_heatmap.update_traces(
-    text=agg_wr_pivot.round(1).astype(str),  # Round values to 1 decimal and convert to string for display
-    texttemplate="%{text}",  # Use the rounded values as text
-    textfont=dict(size=10),  # Adjust font size if needed
-    hoverinfo='text'  # Show these values in the hover tooltips
+    text=agg_wr_pivot.round(1).astype(str),  # round values to 1 decimal and convert to string
+    texttemplate="%{text}",  # rounded values as text
+    textfont=dict(size=10),  # font size
+    hoverinfo='text'  # hover info - show the values
 )
 
-# Update layout for aesthetics if needed
 fig_wr_heatmap.update_layout(template='plotly')
 
-# Display the heatmap in Streamlit
+# show heatmap
 st.plotly_chart(fig_wr_heatmap, use_container_width=True)
 
 
-######################################################################################
+#######################################################################################################################
 
-#### k-means clustering
+# k-means clustering
 
-######################################################################################
+#######################################################################################################################
 
 st.header('k-Means Clustering')
-st.subheader('Ranked Vehicle Performance Groups')
+st.subheader('Ranked Ground Vehicle Performance Groups')
 st.write("""k-Means clustering is performed on several engagement variables like *K/D*
-            and *vehicles destroyed per battle*. Vehicles are automatically clustered into one
-            of three performance groups: **high performers**, **moderate performers**, 
-            and **low performers**.""")
+            and *vehicles destroyed per battle*. The algorithm clusters vehicles into one
+            of three groups: **high performers**, **moderate performers**, and **low performers**.""")
+st.write("""
+         Select a BR range to cluster. A scatterplot is generated and the results can be downloaded as a CSV file. 
+         """)
 
 
-# Function to plot a scatter plot with Plotly
+# scatterplot function
 def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     fig = px.scatter(
         df,
@@ -238,33 +242,36 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     )
     return fig
 
-# Assuming df_copy has already been created earlier
+# clustering metrics - I removed win rate  as it was causing some noise
+# rare vehicles that were hardly used would have very high win rates, which sometimes skewed results
+# win rates are not always the best indicator for individual vehicle performance as they depend heavily on the entire team
+# to simplify things, I focused on two engagement metrics: K/D and Kills per battle
 key_metrics = ['rb_ground_frags_per_death', 
                'rb_ground_frags_per_battle', 
               ]       
-               # 'rb_win_rate'] # removing win_rate as it was causing some issues with 
+               # 'rb_win_rate'] # We could add this in. We might possibly restrict clustering to include non-rare vehicles
 
-# Function to filter, create the 'br_range' column, group by 'name', and segment data for the last month
+# processing function that filters, creates 'br_range' column, groups by vehicle, and segments data for the last month (30 days)
 def filter_and_segment_data(df, key_metrics):
     recent_date = datetime.now() - timedelta(days=30)
     
-    # Filter data for the last 2 months and drop rows with NaN in key metrics
+    # filter data for the last months and drop rows with NaN in our metrics
     filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics)
     
-    # Remove rows where 'cls' is 'Fleet' or 'Aviation'
+    # drop rows where 'cls' is 'Fleet' or 'Aviation' -- 
     filtered_df = filtered_df[~filtered_df['cls'].isin(['Fleet', 'Aviation'])]
     
-    # Create the 'br_range' column based on 'rb_br'
+    # make 'br_range' column based on 'rb_br'
     filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
     
-    # Group by 'name' and aggregate key metrics by taking the mean
+    # Group by vehicle  and aggregate key metrics by taking the mean (from the date range of last 30 days)
     aggregated_df = filtered_df.groupby('name', as_index=False).agg({
         'rb_ground_frags_per_death': 'mean',
         'rb_ground_frags_per_battle': 'mean',
         'rb_win_rate': 'mean',
-        'br_range': 'first',  # Keep the first BR range per name if consistent
-        'cls': 'first',       # Keep the first cls per name if consistent
-        'nation': 'first'     # Keep the first nation per name if consistent
+        'br_range': 'first',  # this keeps the first BR range per name
+        'cls': 'first',       # Keep the first cls
+        'nation': 'first'     # Keep the first nation
     })
     
     # Segment data by 'br_range'
@@ -272,29 +279,31 @@ def filter_and_segment_data(df, key_metrics):
     
     return segmented_data
 
+# k-means function
+
 def perform_kmeans_and_label(segmented_data, key_metrics):
-    scaler = StandardScaler()
+    scaler = StandardScaler() #initialize a standard scaler obj
     results = {}
 
     for br, data in segmented_data.items():
         if not data.empty:
-            # Standardize the data for clustering
+            # standardize data
             standardized_metrics = scaler.fit_transform(data[key_metrics])
 
-            # Perform k-means clustering (3 clusters)
+            # Perform k-means clustering (set k = 3 to make 3 performance clusters)
             kmeans = KMeans(n_clusters=3, random_state=42)
             data['cluster'] = kmeans.fit_predict(standardized_metrics)
             
-            # Get the centroids (the average position of each cluster in the feature space)
+            # Get centroids - note that centroids represent the average position of each cluster in feature space
             centroids = kmeans.cluster_centers_
 
-            # Inverse transform centroids back to the original scale
+            # use inverse transform on centroids to get them back in original scale -- could display this?
             centroids_original_scale = scaler.inverse_transform(centroids)
 
-            # Calculate the average value for each cluster's centroid across all key metrics
+            # get average value for each cluster's centroid across all key metrics - I'm going to use this to auto-assign labels
             avg_centroids = np.mean(centroids_original_scale, axis=1)
 
-            # Assign labels based on the average values of the centroids
+            # assign labels based on the average values of the centroids
             label_map = {}
             for i, avg_value in enumerate(avg_centroids):
                 if avg_value == max(avg_centroids):
@@ -304,12 +313,12 @@ def perform_kmeans_and_label(segmented_data, key_metrics):
                 else:
                     label_map[i] = 'moderate performance'
 
-            # Map clusters to performance labels
+            # map clusters to these performance labels
             data['performance_label'] = data['cluster'].map(label_map)
 
             results[br] = data
 
-            # Debug: Print centroids and labels for verification
+            # we can use this to debug: let us print centroids and labels for verification
             print(f"BR {br}: Centroids (original scale)")
             for i, centroid in enumerate(centroids_original_scale):
                 print(f"Cluster {i} - Centroid: {centroid}, Label: {label_map[i]}")
@@ -319,25 +328,22 @@ def perform_kmeans_and_label(segmented_data, key_metrics):
 # Ensure the 'date' column is a datetime type
 df_copy['date'] = pd.to_datetime(df_copy['date'])
 
-# Filter and segment data
+# Filter data
 segmented_data = filter_and_segment_data(df_copy, key_metrics)
 
-# Streamlit user interaction: Select BR range
+# user input: select BR range
 selected_br = st.selectbox("Select BR range for clustering results", list(segmented_data.keys()))
 
-# Debug: Check and display the type of `selected_br`
-# st.write(f"Selected BR: {selected_br} (Type: {type(selected_br)})")
-
-# Run clustering and display results
+# run k-means and display results
 clustering_results = perform_kmeans_and_label(segmented_data, key_metrics)
 
-# Debug: Print keys of `clustering_results` to ensure they are integers
+# Debug: Print keys of clustering_results to ensure they are integers
 print("Clustering results keys:", clustering_results.keys())
 
-# Check if the selected BR data is available for plotting
+# check if selected BR data is available
 selected_br_data = clustering_results.get(selected_br)
 
-# Example usage for Streamlit: Display data and plot scatter plot
+#show data and plot scatter plot
 if selected_br_data is not None and not selected_br_data.empty:
     st.dataframe(selected_br_data)
     st.write("Clustering completed for BR:", selected_br, use_container_width=True)
@@ -352,27 +358,27 @@ if selected_br_data is not None and not selected_br_data.empty:
 else:
     st.write("No data available for the selected BR.")
 
-########################################################################################
+####################################################################################################################
 
-### Bayesian Statistics ###
+# Bayesian Statistics
 
-#########################################################################################
+####################################################################################################################
 
 st.header("Bayesian A/B Testing")
-st.subheader("Probability that One Vehicle (A) Has a Better K/D than Another Vehicle (B)")
-st.write("Please select two vehicles to run a Bayesian test on *K/D*")
+st.subheader("Calculate the Probability that One Vehicle (A) Has a Better K/D than Another Vehicle (B)")
+st.write("Please select two vehicles to run a Bayesian statistical analysis on *K/D*")
 
 # function to run Bayesian testing on numeric or continuous data
 def bayesian_ab_test_numeric(vehicle_one_series, vehicle_two_series, vehicle_one_name, vehicle_two_name, n_simulations=10000):
-    # Calculate sample statistics
+    # calculate sample statistics - we need these for posteriors
     test_mean, test_std = np.mean(vehicle_one_series), np.std(vehicle_one_series, ddof=1)
     control_mean, control_std = np.mean(vehicle_two_series), np.std(vehicle_two_series, ddof=1)
     test_n, control_n = len(vehicle_one_series), len(vehicle_two_series)
     
-    # Priors
+    # Priors - set these to be non-informmative gaussian priors
     mu0, s0, n0 = 0, 1, 0
     
-    # Posterior parameters
+    # posterior parameters needed for Monte Carlo simulation - non-informative priors lets the data speak for itself
     inv_vars_test = (n0 / s0**2, test_n / test_std**2)
     posterior_mean_test = np.average((mu0, test_mean), weights=inv_vars_test)
     posterior_std_test = 1 / np.sqrt(np.sum(inv_vars_test))
@@ -381,18 +387,18 @@ def bayesian_ab_test_numeric(vehicle_one_series, vehicle_two_series, vehicle_one
     posterior_mean_control = np.average((mu0, control_mean), weights=inv_vars_control)
     posterior_std_control = 1 / np.sqrt(np.sum(inv_vars_control))
     
-    # Monte Carlo Sampling
+    # Monte Carlo sampling time -- use 10,000 simulations
     test_samples = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test, size=n_simulations)
     control_samples = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control, size=n_simulations)
     
     # Probability that vehicle one beats vehicle two
     prob_vehicle_one_beats_vehicle_two = round(np.mean(test_samples > control_samples), 2) * 100
     
-    # Credible Interval for the difference
+    # Credible Interval for the difference - using 95% credibile interval
     diff_samples = test_samples - control_samples
     credible_interval = np.percentile(diff_samples, [2.5, 97.5])
     
-    # Streamlit output with vehicle names
+    # show output
     st.write(f"""Probability that the *{vehicle_one_name}* has a better K/D than the *{vehicle_two_name}* = **<span style='color: green;'>{prob_vehicle_one_beats_vehicle_two}%</span>**""", unsafe_allow_html=True)
 
     
@@ -401,32 +407,29 @@ def bayesian_ab_test_numeric(vehicle_one_series, vehicle_two_series, vehicle_one
     return test_samples, control_samples, diff_samples, credible_interval
 
 
-
-####################
-
-# Plotting function for posterior distributions with specific vehicle names
+# Plotting function for posterior distributions
 def create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehicle_two_name, test_mean, control_mean):
-    # Create the histogram using Plotly figure factory
+    # make histograms or distplots to visualize the distributions of the posterior samples
     fig_a = ff.create_distplot([test_samples, control_samples], 
                                group_labels=[vehicle_one_name, vehicle_two_name], 
                                )
     fig_a.update_traces(nbinsx = 100, autobinx = True, selector = {'type':'histogram'})
     fig_a.add_vline(x=test_samples.mean(), line_width = 3, line_dash='dash', line_color= 'hotpink', annotation_text = f'mean <br> {round(test_mean,1)}', annotation_position = 'bottom')
     fig_a.add_vline(x=control_samples.mean(), line_width = 3, line_dash='dash', line_color= 'purple', annotation_text = f'mean <br> {round(control_mean,1)}', annotation_position = 'bottom')
-    fig_a.update_layout(title_text = 'Posterior Distributions',
+    fig_a.update_layout(title_text = 'Posterior Distributions of Selected Vehicle K/D Ratios',
                         autosize = True,
                         height = 600)
     
-    # Display in Streamlit
+    # show
     st.plotly_chart(fig_a, use_container_width=True)
 
-# Plotting function for difference distribution with specific vehicle names
+# Plotting function for difference distribution - 
 def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, vehicle_two_name):
-    # Round the credible interval and median to 1 decimal
+    # round the credible interval and median to 1 decimal
     credible_interval_rounded = [round(val, 1) for val in credible_interval]
     diff_samples_median = round(np.median(diff_samples), 1)
 
-    # Create the histogram using Plotly figure factory
+    # create plot
     fig2b = ff.create_distplot([diff_samples], 
                                group_labels=[f"{vehicle_one_name} - {vehicle_two_name}"], 
                                colors = ['aquamarine'],
@@ -434,7 +437,7 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
 
     fig2b.update_traces(nbinsx = 100, autobinx=True, selector = {'type':'histogram'})
 
-    # Add vertical lines for credibility interval, 0 difference, and median
+    # Add vertical lines for credibility interval, 0 difference, and median (the median is the most likely lift)
     fig2b.add_vline(x=credible_interval_rounded[0], line_width=3, line_dash='dash', line_color='red', 
                     annotation_text=f'95% Lower Bound <br>{credible_interval_rounded[0]}', annotation_position='top')
     fig2b.add_vline(x=credible_interval_rounded[1], line_width=3, line_dash='dash', line_color='red', 
@@ -444,55 +447,57 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
     fig2b.add_vline(x=0, line_width=3, line_dash='dot', line_color='orange', 
                     annotation_text='0', annotation_position='bottom')
 
-    # Update the layout of the plot
     fig2b.update_layout(
-        title_text=f"Distribution of Differences ({vehicle_one_name} - {vehicle_two_name})",
+        title_text="Distribution of Differences in K/D",
+        subtitle_text = f"Calculated as {vehicle_one_name} K/D Minus {vehicle_two_name} K/D From 10,000 Simulations",
         height = 600,
         autosize=True
     )
 
-    # Display the plot in Streamlit
+    # show plot
     st.plotly_chart(fig2b, use_container_width=True)
 
 
-####################################
+# User inputs, filtering, and running the Bayesian test
 
+# dataframe copy
 df_bayes = data.copy()
 
+# our metrics
 metric = 'rb_frags_per_death'
 data_type = 'numeric' 
 
-# Convert 'date' column to datetime
+# convert to datetime
 df_bayes['date'] = pd.to_datetime(df_bayes['date'], errors='coerce')
 
-# Initial DataFrame filtering for 'Ground_vehicles' and removing nulls
+# filter for ground vehicles only and removing nulls
 df_bayes_filtered = df_bayes[(df_bayes['cls'] == 'Ground_vehicles') & df_bayes['rb_ground_frags_per_death'].notna()]
 
-# Filter for dates within the last 60 days
+# filter for dates within the last 60 days
 sixty_days_ago = datetime.now() - timedelta(days=60)
 df_bayes_filtered = df_bayes_filtered[df_bayes_filtered['date'] >= sixty_days_ago]
 
-# Create Streamlit columns for separate selections
+# streamlit columns used for filtering vehicle one and vehicle two
 col1, col2 = st.columns(2)
 
 # Column 1: First vehicle selection process
 with col1:
     st.subheader("First Vehicle Selection")
     
-    # Dropdown for selecting nation with placeholder option
+    # select nation
     nation_one = st.selectbox("Select Nation for First Vehicle:", ["Select a nation..."] + sorted(df_bayes_filtered['nation'].unique()))
     
     # Filter after checking if a valid nation is selected
     if nation_one != "Select a nation...":
         df_nation_one = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]
         
-        # Dropdown for selecting rb_br with placeholder option
+        # Dropdown for rb_br
         rb_br_one = st.selectbox("Select BR Rating for First Vehicle:", ["Select a BR..."] + sorted(df_nation_one['rb_br'].unique()))
         
         if rb_br_one != "Select a BR...":
             df_br_one = df_nation_one[df_nation_one['rb_br'] == rb_br_one]
             
-            # Dropdown for selecting the first vehicle name with placeholder
+            # Dropdown for selecting name
             vehicle_one_name = st.selectbox("Select the First Vehicle:", ["Select a vehicle..."] + sorted(df_br_one['name'].unique()))
             
             if vehicle_one_name != "Select a vehicle...":
@@ -502,26 +507,26 @@ with col1:
 with col2:
     st.subheader("Second Vehicle Selection")
     
-    # Dropdown for selecting nation with placeholder option
+    # selecting nation
     nation_two = st.selectbox("Select Nation for Second Vehicle:", ["Select a nation..."] + sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
     
     if nation_two != "Select a nation...":
         df_nation_two = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]
         
-        # Dropdown for selecting rb_br with placeholder option
+        # selecting rb_br
         rb_br_two = st.selectbox("Select BR Rating for Second Vehicle:", ["Select a BR..."] + sorted(df_nation_two['rb_br'].unique()), key="rb_br_two")
         
         if rb_br_two != "Select a BR...":
             df_br_two = df_nation_two[df_nation_two['rb_br'] == rb_br_two]
             
-            # Dropdown for selecting the second vehicle name with placeholder
+            # selecting the second vehicle
             vehicle_two_name = st.selectbox("Select the Second Vehicle:", ["Select a vehicle..."] + sorted(df_br_two['name'].unique()), key="vehicle_two_name")
             
             if vehicle_two_name != "Select a vehicle...":
                 vehicle_two_series = df_br_two[df_br_two['name'] == vehicle_two_name]['rb_ground_frags_per_death']
 
 
-   # Run Bayesian A/B testing and display plots
+# Run Bayesian A/B testing and display plots
 if 'vehicle_one_series' in locals() and 'vehicle_two_series' in locals():
     st.write(f"**{vehicle_one_name} vs {vehicle_two_name}**")
 
@@ -530,19 +535,16 @@ if 'vehicle_one_series' in locals() and 'vehicle_two_series' in locals():
         vehicle_one_series, vehicle_two_series, vehicle_one_name, vehicle_two_name
     )
     
-    # Calculate means after the test samples are available
+    # Calculate means for posteriors
     test_mean = np.mean(test_samples)
     control_mean = np.mean(control_samples)
 
-    # Display posterior distributions
-    # st.write(f"Posterior Distributions for {vehicle_one_name} and {vehicle_two_name}:")
-    # Now call the function with test_mean and control_mean as arguments
+    # display posterior distributions
+    # call function
     create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehicle_two_name, test_mean, control_mean)
 
-    # Display difference distribution plot
-    # st.write(f"Difference Distribution between {vehicle_one_name} and {vehicle_two_name} with Credibility Interval:")
+    # display difference distribution plot
+    # call difference function
     create_difference_plot(diff_samples, credible_interval, vehicle_one_name, vehicle_two_name)
 else:
     st.write("Please select both vehicles to run the Bayesian A/B test.")
-
-
