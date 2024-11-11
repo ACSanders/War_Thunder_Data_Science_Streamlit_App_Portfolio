@@ -258,17 +258,23 @@ st.plotly_chart(fig_wr_heatmap, use_container_width=True)
 
 #######################################################################################################################
 
+import streamlit as st
+import pandas as pd
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import plotly.express as px
+from datetime import datetime, timedelta
+
 st.header('k-Means Clustering')
 st.subheader('Ranked Ground Vehicle Performance Groups')
 st.write("""k-Means clustering is performed on several engagement variables like *K/D*
             and *vehicles destroyed per battle*. The algorithm clusters vehicles into one
             of three groups: **high performers**, **moderate performers**, and **low performers**.
             After clustering, an interactive scatterplot is generated showing displaying each cluster of vehicles for the variables
-            K/D and Frags per Battle. The full results can be downloaded as a CSV file. 
-         """)
+            K/D and Frags per Battle. The full results can be downloaded as a CSV file.""")
 
-
-# scatterplot function
+# Scatter plot function
 def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     fig = px.scatter(
         df,
@@ -276,142 +282,99 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         y=y_metric,
         color=color_metric,
         hover_data=['name', 'cls', 'nation'],
-        title="<b>Scatter Plot of K/D vs Frags per Battle Colored by Performance Cluster</b>"  # Bold title
+        title="<b>Scatter Plot of K/D vs Frags per Battle Colored by Performance Cluster</b>"
     )
     
     fig.update_layout(
-        title=dict(
-            font=dict(size=20) 
-        ),
+        title=dict(font=dict(size=20)),
         xaxis_title=x_metric,
         yaxis_title=y_metric,
-        legend_title=dict(text=color_metric, font=dict(size=14)), 
-        xaxis=dict(title_font=dict(size=16)), 
+        legend_title=dict(text=color_metric, font=dict(size=14)),
+        xaxis=dict(title_font=dict(size=16)),
         yaxis=dict(title_font=dict(size=16)),
-        width = 900,
-        height = 600
+        width=900,
+        height=600
     )
     
     # markers
-    fig.update_traces(marker=dict(size=8)) 
+    fig.update_traces(marker=dict(size=8))
     
     return fig
 
-# clustering metrics - I removed win rate  as it was causing some noise
-# rare vehicles that were hardly used would have very high win rates, which sometimes skewed results
-# win rates are not always the best indicator for individual vehicle performance as they depend heavily on the entire team
-# to simplify things, I focused on two engagement metrics: K/D and Kills per battle
-key_metrics = ['rb_ground_frags_per_death', 
-               'rb_ground_frags_per_battle', 
-              ]       
-               # 'rb_win_rate'] # We could add this in. We might possibly restrict clustering to include non-rare vehicles
+# Clustering metrics
+key_metrics = ['rb_ground_frags_per_death', 'rb_ground_frags_per_battle']
 
-# processing function that filters, creates 'br_range' column, groups by vehicle, and segments data for the last month (30 days)
+# Processing function with caching
+@st.cache_data
 def filter_and_segment_data(df, key_metrics):
     recent_date = datetime.now() - timedelta(days=30)
-    
-    # filter data for the last months and drop rows with NaN in our metrics
+    # Filter data for the last 30 days and drop rows with NaN in key metrics
     filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics)
-    
-    # drop rows where 'cls' is 'Fleet' or 'Aviation' -- 
     filtered_df = filtered_df[~filtered_df['cls'].isin(['Fleet', 'Aviation'])]
-    
-    # make 'br_range' column based on 'rb_br'
     filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
     
-    # Group by vehicle  and aggregate key metrics by taking the mean (from the date range of last 30 days)
+    # Group by vehicle and aggregate key metrics
     aggregated_df = filtered_df.groupby('name', as_index=False).agg({
         'rb_ground_frags_per_death': 'mean',
         'rb_ground_frags_per_battle': 'mean',
         'rb_win_rate': 'mean',
-        'br_range': 'first',  # this keeps the first BR range per name
-        'cls': 'first',       # Keep the first cls
-        'nation': 'first'     # Keep the first nation
+        'br_range': 'first',
+        'cls': 'first',
+        'nation': 'first'
     })
     
-    # Segment data by 'br_range'
-    segmented_data = {br: aggregated_df[aggregated_df['br_range'] == br] for br in range(1, 14)}
+    return aggregated_df
+
+# Perform k-means clustering only on the selected BR range
+def perform_kmeans_and_label(data, key_metrics):
+    scaler = StandardScaler() 
+    standardized_metrics = scaler.fit_transform(data[key_metrics])
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    data['cluster'] = kmeans.fit_predict(standardized_metrics)
     
-    return segmented_data
+    # Centroid calculation
+    centroids = kmeans.cluster_centers_
+    centroids_original_scale = scaler.inverse_transform(centroids)
+    avg_centroids = np.mean(centroids_original_scale, axis=1)
+    
+    # Label mapping
+    label_map = {i: 'high performance' if avg_centroids[i] == max(avg_centroids)
+                 else 'low performance' if avg_centroids[i] == min(avg_centroids)
+                 else 'moderate performance' for i in range(3)}
+    
+    data['performance_label'] = data['cluster'].map(label_map)
+    
+    return data
 
-# k-means function
-
-def perform_kmeans_and_label(segmented_data, key_metrics):
-    scaler = StandardScaler() #initialize a standard scaler obj
-    results = {}
-
-    for br, data in segmented_data.items():
-        if not data.empty:
-            # standardize data
-            standardized_metrics = scaler.fit_transform(data[key_metrics])
-
-            # Perform k-means clustering (set k = 3 to make 3 performance clusters)
-            kmeans = KMeans(n_clusters=3, random_state=42)
-            data['cluster'] = kmeans.fit_predict(standardized_metrics)
-            
-            # Get centroids - note that centroids represent the average position of each cluster in feature space
-            centroids = kmeans.cluster_centers_
-
-            # use inverse transform on centroids to get them back in original scale -- could display this?
-            centroids_original_scale = scaler.inverse_transform(centroids)
-
-            # get average value for each cluster's centroid across all key metrics - I'm going to use this to auto-assign labels
-            avg_centroids = np.mean(centroids_original_scale, axis=1)
-
-            # assign labels based on the average values of the centroids
-            label_map = {}
-            for i, avg_value in enumerate(avg_centroids):
-                if avg_value == max(avg_centroids):
-                    label_map[i] = 'high performance'
-                elif avg_value == min(avg_centroids):
-                    label_map[i] = 'low performance'
-                else:
-                    label_map[i] = 'moderate performance'
-
-            # map clusters to these performance labels
-            data['performance_label'] = data['cluster'].map(label_map)
-
-            results[br] = data
-
-            # we can use this to debug: let us print centroids and labels for verification
-            print(f"BR {br}: Centroids (original scale)")
-            for i, centroid in enumerate(centroids_original_scale):
-                print(f"Cluster {i} - Centroid: {centroid}, Label: {label_map[i]}")
-
-    return results
-
-# Ensure the 'date' column is a datetime type
+# Ensure 'date' column is in datetime format
 df_copy['date'] = pd.to_datetime(df_copy['date'])
 
-# Filter data
-segmented_data = filter_and_segment_data(df_copy, key_metrics)
+# Filter and segment data once, caching the result
+aggregated_df = filter_and_segment_data(df_copy, key_metrics)
 
-# user input: select BR range
-selected_br = st.selectbox("Select a BR range for clustering results", list(segmented_data.keys()))
+# User input: select BR range
+selected_br = st.selectbox("Select a BR range for clustering results", list(range(1, 14)))
 
-# run k-means and display results
-clustering_results = perform_kmeans_and_label(segmented_data, key_metrics)
+# Filter data for the selected BR range
+selected_br_data = aggregated_df[aggregated_df['br_range'] == selected_br]
 
-# Debug: Print keys of clustering_results to ensure they are integers
-print("Clustering results keys:", clustering_results.keys())
-
-# check if selected BR data is available
-selected_br_data = clustering_results.get(selected_br)
-
-#show data and plot scatter plot
-if selected_br_data is not None and not selected_br_data.empty:
-    st.dataframe(selected_br_data)
-    st.write("Clustering completed for BR:", selected_br)
+if not selected_br_data.empty:
+    # Perform k-means clustering only for the selected BR data
+    clustering_results = perform_kmeans_and_label(selected_br_data, key_metrics)
+    
+    # Show the data and plot scatter plot
+    st.dataframe(clustering_results)
+    st.write(f"Clustering completed for BR {selected_br}.")
     
     fig = plot_scatter_plot(
-        selected_br_data,
+        clustering_results,
         x_metric='rb_ground_frags_per_death',
         y_metric='rb_ground_frags_per_battle',
         color_metric='performance_label'
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.write("No data available for the selected BR.")
+    st.write(f"No data available for BR {selected_br}.")
 
 ####################################################################################################################
 
