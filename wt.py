@@ -16,7 +16,7 @@ title_col, space_col, logo_col = st.columns([4,1,1])
 with title_col:
     st.write("""
             # War Thunder Data Science App :boom:
-            **Bayesian A/B Testing, K-Means Clustering, and Statistical Techniques Applied to War Thunder Data**
+            **Bayesian A/B Testing, K-Means Clustering, Linear Regression, and Statistical Techniques Applied to War Thunder Data**
             """)
     st.write('Developed by **A.C. Sanders** - also known in the War Thunder community as *DrKnoway*')
 
@@ -282,6 +282,10 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         y=y_metric,
         color=color_metric,
         hover_data=['name', 'cls', 'nation'],
+        # add OLS regression line
+        trendline = "ols",
+        # apply it to the overall dataset and not the segments
+        trendline_scope = "overall",
         title="<b>Scatter Plot of K/D vs Frags per Battle Colored by Performance Cluster</b>"
     )
     
@@ -365,16 +369,35 @@ if not selected_br_data.empty:
     # Show the data and plot scatter plot
     st.dataframe(clustering_results)
     st.write(f"Clustering completed for BR {selected_br}.")
-    
+
+    st.header("Linear Regression Applied to K-Means Cluster Results")
+    st.write(f"Dependent variable (y) = K/D")
+    st.write(f"Independent variable (x) = Frags per Battle")
+
     fig = plot_scatter_plot(
         clustering_results,
-        x_metric='rb_ground_frags_per_death',
-        y_metric='rb_ground_frags_per_battle',
+        x_metric='rb_ground_frags_per_battle',
+        y_metric='rb_ground_frags_per_death',
         color_metric='performance_label'
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.write(f"No data available for BR {selected_br}.")
+
+# get regression info
+
+trendline_results = px.get_trendline_results(fig)
+if not trendline_results.empty:
+    model_summary = trendline_results.iloc[0]["px_fit_results"].summary()
+
+    # Display regression summary
+    st.subheader(f"Linear Regression Summary for BR {selected_br}")
+    st.text(model_summary) 
+
+    # convert to a table
+    # st.write("### Coefficients Table")
+    # coef_df = pd.DataFrame(model_summary.tables[1].data[1:], columns=model_summary.tables[1].data[0])
+    # st.dataframe(coef_df)
 
 ####################################################################################################################
 
