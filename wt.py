@@ -392,7 +392,8 @@ if not trendline_results.empty:
 
     # Display regression summary
     st.subheader(f"Linear Regression Summary for BR {selected_br}")
-    st.text(model_summary) 
+    st.code(model_summary.as_text(), language="text")
+    # st.text(model_summary) 
 
     # convert to a table
     # st.write("### Coefficients Table")
@@ -406,21 +407,22 @@ if not trendline_results.empty:
 ####################################################################################################################
 
 st.header("Bayesian A/B Testing")
-st.subheader("Calculate the Probability that One Vehicle (A) Has a Better K/D than Another Vehicle (B)")
-st.write("""This tool tests the K/D rates between two vehicles using Bayesian statistical methods. 
+st.subheader("Calculate the Probability that One Nation (A) Has a Better Win Rate than Another Nation (B)")
+st.write("""This tool tests the win rates between two nations at a specified BR range using Bayesian statistical methods. 
             Historical data from the last 60 days is used in conjunction with non-informative priors. *Monte Carlo* simulation 
-            is employed to create the posterior distributions for *K/D*, and the *probability* that the first selected vehicle's K/D is **better**
-            than the second vehicle's K/D is computed. Additionally, the distribution of differences between the K/D rates are plotted along with 
+            is employed to create the posterior distributions for *win rates*, and the *probability* that the first selected nation's win rate is **better**
+            than the second nation's win rate is computed. Additionally, the distribution of differences between the win rates are plotted along with 
             a *95% credibility interval*. 
             """)
-st.write("**Please select two vehicles to run a Bayesian statistical analysis on *K/D***")
+st.write("**Please select two nations to run a Bayesian statistical analysis on *win rates***")
 
 # function to run Bayesian testing on numeric or continuous data
-def bayesian_ab_test_numeric(vehicle_one_series, vehicle_two_series, vehicle_one_name, vehicle_two_name, n_simulations=10000):
+# I originally developed this for test and control groups for A/B experiments and I've retained some of these names for variables
+def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, nation_two, n_simulations=10000):
     # calculate sample statistics - we need these for posteriors
-    test_mean, test_std = np.mean(vehicle_one_series), np.std(vehicle_one_series, ddof=1)
-    control_mean, control_std = np.mean(vehicle_two_series), np.std(vehicle_two_series, ddof=1)
-    test_n, control_n = len(vehicle_one_series), len(vehicle_two_series)
+    test_mean, test_std = np.mean(nation_one_series), np.std(nation_one_series, ddof=1)
+    control_mean, control_std = np.mean(nation_two_series), np.std(nation_two_series, ddof=1)
+    test_n, control_n = len(nation_one_series), len(nation_two_series)
     
     # Priors - set these to be non-informmative gaussian priors
     mu0, s0, n0 = 0, 1, 0
@@ -447,7 +449,7 @@ def bayesian_ab_test_numeric(vehicle_one_series, vehicle_two_series, vehicle_one
     
     # results - probability that A is better than B
     st.markdown(
-    f"""Probability that the **{vehicle_one_name}** has a better K/D than the **{vehicle_two_name}** = 
+    f"""Probability that the **{nation_one}** has a better win rate than **{nation_two}** = 
     <span style='color: green; font-weight:bold;'>{prob_vehicle_one_beats_vehicle_two}%</span>""",
     unsafe_allow_html=True
     )
@@ -512,94 +514,62 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
 
 # User inputs, filtering, and running the Bayesian test
 
-# dataframe copy
 df_bayes = data.copy()
 
-# our metrics
-metric = 'rb_frags_per_death'
-data_type = 'numeric' 
+# Filter for ground vehicles only and remove nulls in 'rb_win_rate'
+df_bayes_filtered = df_bayes[(df_bayes['cls'] == 'Ground_vehicles') & df_bayes['rb_win_rate'].notna()]
 
-# convert to datetime
-df_bayes['date'] = pd.to_datetime(df_bayes['date'], errors='coerce')
-
-# filter for ground vehicles only and removing nulls
-df_bayes_filtered = df_bayes[(df_bayes['cls'] == 'Ground_vehicles') & df_bayes['rb_ground_frags_per_death'].notna()]
-
-# filter for dates within the last 60 days
+# Convert to datetime and filter for the last 60 days
+df_bayes_filtered['date'] = pd.to_datetime(df_bayes_filtered['date'], errors='coerce')
 sixty_days_ago = datetime.now() - timedelta(days=60)
 df_bayes_filtered = df_bayes_filtered[df_bayes_filtered['date'] >= sixty_days_ago]
 
-# Create br_range variable for broad BR categories
+# Create 'br_range' variable for broad BR categories
 df_bayes_filtered['br_range'] = np.floor(df_bayes_filtered['rb_br']).astype(int)
 
-# streamlit columns used for filtering vehicle one and vehicle two
+# User input for BR range
+selected_br_range = st.selectbox("Select BR Range:", sorted(df_bayes_filtered['br_range'].unique()))
+df_bayes_filtered = df_bayes_filtered[df_bayes_filtered['br_range'] == selected_br_range]
+
+# Columns for selecting two nations
 col1, col2 = st.columns(2)
 
-# Column 1: First vehicle selection
+# First nation selection
 with col1:
-    st.subheader("First Vehicle Selection")
-    
-    # Select nation
-    nation_one = st.selectbox("Select Nation for First Vehicle:", ["Select a nation..."] + sorted(df_bayes_filtered['nation'].unique()))
-    
-    if nation_one != "Select a nation...":
-        df_nation_one = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]
-        
-        # Dropdown for BR range
-        br_range_one = st.selectbox("Select BR Range for First Vehicle:", ["Select a BR Range..."] + sorted(df_nation_one['br_range'].unique()))
-        
-        if br_range_one != "Select a BR Range...":
-            df_br_range_one = df_nation_one[df_nation_one['br_range'] == br_range_one]
-            
-            # Dropdown for selecting name
-            vehicle_one_name = st.selectbox("Select the First Vehicle:", ["Select a vehicle..."] + sorted(df_br_range_one['name'].unique()))
-            
-            if vehicle_one_name != "Select a vehicle...":
-                vehicle_one_series = df_br_range_one[df_br_range_one['name'] == vehicle_one_name]['rb_ground_frags_per_death']
+    st.subheader("Nation One Selection")
+    nation_one = st.selectbox("Select Nation for First Group:", sorted(df_bayes_filtered['nation'].unique()))
+    if nation_one:
+        nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['rb_win_rate']
 
-# Column 2: Second vehicle selection
+# Second nation selection
 with col2:
-    st.subheader("Second Vehicle Selection")
-    
-    # Select nation
-    nation_two = st.selectbox("Select Nation for Second Vehicle:", ["Select a nation..."] + sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
-    
-    if nation_two != "Select a nation...":
-        df_nation_two = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]
-        
-        # Dropdown for BR range
-        br_range_two = st.selectbox("Select BR Range for Second Vehicle:", ["Select a BR Range..."] + sorted(df_nation_two['br_range'].unique()), key="br_range_two")
-        
-        if br_range_two != "Select a BR Range...":
-            df_br_range_two = df_nation_two[df_nation_two['br_range'] == br_range_two]
-            
-            # Select the second vehicle
-            vehicle_two_name = st.selectbox("Select the Second Vehicle:", ["Select a vehicle..."] + sorted(df_br_range_two['name'].unique()), key="vehicle_two_name")
-            
-            if vehicle_two_name != "Select a vehicle...":
-                vehicle_two_series = df_br_range_two[df_br_range_two['name'] == vehicle_two_name]['rb_ground_frags_per_death']
+    st.subheader("Nation Two Selection")
+    nation_two = st.selectbox("Select Nation for Second Group:", sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
+    if nation_two:
+        nation_two_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]['rb_win_rate']
 
-
-# Run Bayesian A/B testing and display plots
-if 'vehicle_one_series' in locals() and 'vehicle_two_series' in locals():
-    st.write(f"Selected Vehicles: the {vehicle_one_name} **versus** the {vehicle_two_name}**")
+# Run Bayesian A/B testing if both series are defined
+if 'nation_one_series' in locals() and 'nation_two_series' in locals():
+    st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
 
     # Run Bayesian A/B testing
     test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(
-        vehicle_one_series, vehicle_two_series, vehicle_one_name, vehicle_two_name
+        nation_one_series, nation_two_series, nation_one, nation_two
     )
     
     # Calculate means for posteriors
     test_mean = np.mean(test_samples)
     control_mean = np.mean(control_samples)
 
-    # display posterior distributions
-    st.subheader("Posterior Distributions of Selected Vehicle K/D Rates")
-    create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehicle_two_name, test_mean, control_mean)
+    # Display posterior distributions
+    st.subheader(f"Posterior Distributions Win Rates for {nation_one} and {nation_two}")
+    create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
 
-    # display difference distribution plot
-    st.subheader("Distribution of Differences in K/D for 10,000 Simulations")
-    st.markdown(f"Difference calculated as **{vehicle_one_name}** K/D rate - **{vehicle_two_name}** K/D rate")
-    create_difference_plot(diff_samples, credible_interval, vehicle_one_name, vehicle_two_name)
+    # Display difference distribution plot
+    st.subheader("Distribution of Differences in Win Rates")
+    st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
+    create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
 else:
-    st.write("Please select both vehicles to run the Bayesian A/B test.")
+    st.write("Please select both nations to run the Bayesian A/B test.")
+
+
