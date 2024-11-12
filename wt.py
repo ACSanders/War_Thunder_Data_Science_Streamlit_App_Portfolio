@@ -446,16 +446,28 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
     # Credible Interval for the difference - using 95% credibile interval
     diff_samples = test_samples - control_samples
     credible_interval = np.percentile(diff_samples, [2.5, 97.5])
-    
-    # results - probability that A is better than B
-    st.markdown(
-    f"""Probability that the **{nation_one}** has a better win rate than **{nation_two}** = 
-    <span style='color: green; font-weight:bold;'>{prob_vehicle_one_beats_vehicle_two}%</span>""",
-    unsafe_allow_html=True
-    )
 
-    # credibility interval
-    st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
+    # summary
+    st.subheader("Bayesian A/B Test Summary")
+    
+    bayes_col1, bayes_col2 = st.columns(2)
+
+    with bayes_col1:
+        # results - probability that A is better than B
+        st.markdown(
+        f"""Probability that the **{nation_one}** has a better win rate than **{nation_two}** = 
+            <span style='color: green; font-weight:bold;'>{prob_vehicle_one_beats_vehicle_two}%</span>""",
+            unsafe_allow_html=True
+        )
+
+        # credibility interval
+        st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
+
+        # Most likely lift = median
+        st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
+
+    with bayes_col2:
+        st.metric(label=f"Probability {nation_one} win rate > {nation_two} win rate", value=prob_vehicle_one_beats_vehicle_two)
     
     return test_samples, control_samples, diff_samples, credible_interval
 
