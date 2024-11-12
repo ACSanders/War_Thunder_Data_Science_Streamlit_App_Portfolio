@@ -278,8 +278,8 @@ st.subheader('Ranked Ground Vehicle Performance Groups')
 st.write("""k-Means clustering is performed on several engagement variables like *K/D*
             and *vehicles destroyed per battle*. The algorithm clusters vehicles into one
             of three groups: **high performers**, **moderate performers**, and **low performers**.
-            After clustering, an interactive scatterplot is generated showing displaying each cluster of vehicles for the variables
-            K/D and Frags per Battle. The full results can be downloaded as a CSV file.""")
+            After clustering, an interactive scatterplot is generated displaying each cluster of vehicles for the variables
+            K/D and Win Rate. Linear regression is performed, and the full clustering results can be downloaded as a CSV file.""")
 
 # Scatter plot function
 def plot_scatter_plot(df, x_metric, y_metric, color_metric):
@@ -293,7 +293,7 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         trendline = "ols",
         # apply it to the overall dataset and not the segments
         trendline_scope = "overall",
-        title="<b>Scatter Plot of K/D vs Frags per Battle Colored by Performance Cluster</b>"
+        title="<b>Scatter Plot of K/D vs Win Rate Colored by Performance Cluster</b>"
     )
     
     fig.update_layout(
@@ -318,9 +318,9 @@ key_metrics = ['rb_ground_frags_per_death', 'rb_ground_frags_per_battle']
 # Processing function with caching
 @st.cache_data
 def filter_and_segment_data(df, key_metrics):
-    recent_date = datetime.now() - timedelta(days=30)
-    # Filter data for the last 30 days and drop rows with NaN in key metrics
-    filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics)
+    recent_date = datetime.now() - timedelta(days=15)
+    # Filter data for the last 15 days and drop rows with NaN in key metrics - including win rate
+    filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics + ['rb_win_rate'])
     filtered_df = filtered_df[~filtered_df['cls'].isin(['Fleet', 'Aviation'])]
     filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
     
@@ -384,7 +384,7 @@ if not selected_br_data.empty:
     fig = plot_scatter_plot(
         clustering_results,
         x_metric='rb_ground_frags_per_battle',
-        y_metric='rb_ground_frags_per_death',
+        y_metric='rb_win_rate', #'rb_ground_frags_per_death',
         color_metric='performance_label'
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -463,7 +463,7 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
         # results - probability that A is better than B
         st.markdown(
         f"""Probability that the **{nation_one}** has a better win rate than **{nation_two}** = 
-            <span style='color: green; font-weight:bold;'>{prob_vehicle_one_beats_vehicle_two}%</span>""",
+            <span style='color: green; font-weight:bold;'>{round(prob_vehicle_one_beats_vehicle_two,1)}%</span>""",
             unsafe_allow_html=True
         )
 
@@ -474,7 +474,7 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
         st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
 
     with bayes_col2:
-        st.metric(label=f"Probability {nation_one} win rate > {nation_two} win rate", value=prob_vehicle_one_beats_vehicle_two)
+        st.metric(label=f"Probability {nation_one} win rate > {nation_two} win rate", value=round(prob_vehicle_one_beats_vehicle_two,1))
     
     return test_samples, control_samples, diff_samples, credible_interval
 
