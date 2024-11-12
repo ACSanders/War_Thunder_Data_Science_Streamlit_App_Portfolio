@@ -72,8 +72,15 @@ filtered_by_nation_df = filtered_by_type_df[filtered_by_type_df['nation'].isin(s
 # 3rd dropdown for BR (i.e., battle rating in the game)
 with col3:
     br_values = filtered_by_nation_df['rb_br'].unique()
-    # Set default to 1.0 if it exists in br_values
-    default_br = [1.0] if 1.0 in br_values else [sorted(br_values)[0]]
+    
+    # Check if br_values is not empty before accessing it
+    if br_values.size > 0:  # Check if br_values has values
+        # Set default to 1.0 if it exists in br_values
+        default_br = [1.0] if 1.0 in br_values else [sorted(br_values)[0]]
+    else:
+        default_br = []  # Or set to any default value you'd prefer (e.g., empty list or fallback value)
+    
+    # Handle case where no BR values are available
     selected_br = st.multiselect("BR", sorted(br_values, reverse=True), default=default_br)
 
 # Filter based on selected BR
