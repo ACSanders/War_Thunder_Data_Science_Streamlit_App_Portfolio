@@ -51,7 +51,7 @@ col1, col2, col3, col4 = st.columns(4)
 
 # 1st dropdown menu for the type of vehicle - default set to ground vehicles
 with col1:
-    vehicle_types = df_copy['cls'].unique()
+    vehicle_types = [vt for vt in df_copy['cls'].unique() if vt in ['Aviation', 'Ground_vehicles']]
     # Set default to "Ground" if it exists in vehicle_types
     default_vehicle_type = "Ground_vehicles" if "Ground_vehicles" in vehicle_types else vehicle_types[0]
     selected_vehicle_types = st.selectbox("Vehicle Type", vehicle_types, index=list(vehicle_types).index(default_vehicle_type))
@@ -130,7 +130,6 @@ final_filtered_df = final_filtered_df[
     (final_filtered_df['date'] <= end_date)
 ]
 
-
 # show row count in the filtered DataFrame - used for debugging - un-comment if needed
 # st.write(f"Filtered DataFrame rows: {final_filtered_df.shape[0]}") 
 
@@ -177,6 +176,8 @@ if final_filtered_df.shape[0] > 0:
     st.plotly_chart(fig_box, use_container_width=True)
 else:
     st.write("No data available") # display this message if the selections and resulting dataframe lack any data
+
+st.divider()
 
 ####################################################################################################################################
 
@@ -258,6 +259,7 @@ fig_wr_heatmap.update_layout(
 # Show heatmap with customized dimensions
 st.plotly_chart(fig_wr_heatmap, use_container_width=True)
 
+st.divider()
 
 #######################################################################################################################
 
@@ -318,8 +320,8 @@ key_metrics = ['rb_ground_frags_per_death', 'rb_ground_frags_per_battle']
 # Processing function with caching
 @st.cache_data
 def filter_and_segment_data(df, key_metrics):
-    recent_date = datetime.now() - timedelta(days=15)
-    # Filter data for the last 15 days and drop rows with NaN in key metrics - including win rate
+    recent_date = datetime.now() - timedelta(days=30)
+    # Filter data for the last 30 days and drop rows with NaN in key metrics - including win rate
     filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics + ['rb_win_rate'])
     filtered_df = filtered_df[~filtered_df['cls'].isin(['Fleet', 'Aviation'])]
     filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
@@ -375,16 +377,16 @@ if not selected_br_data.empty:
     
     # Show the data and plot scatter plot
     st.dataframe(clustering_results)
-    st.write(f"Clustering completed for BR {selected_br}.")
+    st.success(f"Clustering completed for BR {selected_br}.", icon="✅")
 
     st.header("Linear Regression Applied to K-Means Cluster Results")
-    st.write(f"Dependent variable (y) = K/D")
-    st.write(f"Independent variable (x) = Frags per Battle")
+    st.write(f"Dependent variable (y) = Win Rate")
+    st.write(f"Independent variable (x) = K/D")
 
     fig = plot_scatter_plot(
         clustering_results,
-        x_metric='rb_ground_frags_per_battle',
-        y_metric='rb_win_rate', #'rb_ground_frags_per_death',
+        x_metric='rb_ground_frags_per_death',
+        y_metric='rb_win_rate', 
         color_metric='performance_label'
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -395,17 +397,57 @@ else:
 
 trendline_results = px.get_trendline_results(fig)
 if not trendline_results.empty:
-    model_summary = trendline_results.iloc[0]["px_fit_results"].summary()
+    # model_summary = trendline_results.iloc[0]["px_fit_results"].summary()
+    px_fit_results = trendline_results.iloc[0]["px_fit_results"]
 
     # Display regression summary
     st.subheader(f"Linear Regression Summary for BR {selected_br}")
-    st.code(model_summary.as_text(), language="text")
-    # st.text(model_summary) 
 
-    # convert to a table
-    # st.write("### Coefficients Table")
-    # coef_df = pd.DataFrame(model_summary.tables[1].data[1:], columns=model_summary.tables[1].data[0])
-    # st.dataframe(coef_df)
+    # extract the results
+    r_squared = px_fit_results.rsquared
+    adjusted_r_squared = px_fit_results.rsquared_adj
+    coefficients = px_fit_results.params
+    p_values = px_fit_results.pvalues
+    f_statistic = px_fit_results.fvalue
+    f_pvalue = px_fit_results.f_pvalue
+
+    # create metrics
+    lr_a, lr_b, lr_c = st.columns(3)
+
+    with lr_a:
+        st.metric('R2', value = round(r_squared, 2))
+        st.metric('Adjusted R2', value = round(adjusted_r_squared, 2))
+
+    with lr_b:
+
+        st.metric('F-statistic', value = round(f_statistic, 3))
+        st.metric('F-stat. p-value', value = round(f_pvalue, 3))
+
+    with lr_c:
+        # Convert numpy array to dataframe
+        coefficients = np.array(px_fit_results.params)
+        p_values = np.array(px_fit_results.pvalues)  
+        
+        # Round both coefficients and p-values
+        coefficients_rounded = np.round(coefficients, 3)
+        p_values_rounded = np.round(p_values, 3)
+
+        # make dataframe
+        coefficients_df = pd.DataFrame({
+            "Variable": px_fit_results.model.exog_names,  
+            "Coefficient": coefficients_rounded,          
+            "P-value": p_values_rounded                   
+        })
+
+        # Rename X1 with K/D
+        coefficients_df['Variable'] = coefficients_df['Variable'].replace('x1', 'K/D')
+
+        # table with coefficients and p-values
+        st.markdown("**Regression Coefficients and P-values**")
+        st.table(coefficients_df)
+
+st.divider()
+
 
 ####################################################################################################################
 
@@ -472,6 +514,7 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
 
         # Most likely lift = median
         st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
+
 
     with bayes_col2:
         st.metric(label=f"Probability {nation_one} win rate > {nation_two} win rate", value=round(prob_vehicle_one_beats_vehicle_two,1))
@@ -591,4 +634,8 @@ if 'nation_one_series' in locals() and 'nation_two_series' in locals():
 else:
     st.write("Please select both nations to run the Bayesian A/B test.")
 
+st.success(f"Bayesian analysis complete.", icon="✅")
 
+st.divider()
+
+st.write('2024 | Developed and maintained by A. C. Sanders')
