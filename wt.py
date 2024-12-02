@@ -11,12 +11,13 @@ from sklearn.preprocessing import StandardScaler
 from scipy.stats import beta, norm, uniform
 import matplotlib.pyplot as plt
 
+
 title_col, space_col, logo_col = st.columns([4,1,1])
 
 with title_col:
     st.write("""
-            # War Thunder Data Science App :boom:
-            **Bayesian A/B Testing, K-Means Clustering, Linear Regression, and Statistical Techniques Applied to War Thunder Data**
+            # War Thunder Data Science :boom:
+            **Unveiling War Thunder Trends and Vehicle Performance with Bayesian A/B Testing, k-Means Clustering, Regression, and Statistical Insights**
             """)
     st.write('Developed by **A.C. Sanders** - also known in the War Thunder community as *DrKnoway*')
 
@@ -42,6 +43,14 @@ data = load_data()
 
 # Make a copy of the DataFrame
 df_copy = data.copy()
+
+# rename some columns for better interpretability/readability in the app
+df_copy = df_copy.rename(columns = {'rb_ground_frags_per_death': 'RB Ground K/D',
+                                    'rb_ground_frags_per_battle': 'RB Ground Kills per Battle',
+                                    'rb_win_rate': 'RB Win Rate',
+                                    'rb_battles': 'RB Battles',  
+                                    'rb_air_frags_per_death': 'RB Air K/D', 
+                                    'rb_air_frags_per_battle':'RB Air Kills per Battle'})
 
 # Ensure 'date' column is in datetime format
 df_copy['date'] = pd.to_datetime(df_copy['date'])
@@ -89,12 +98,12 @@ filtered_by_br_df = filtered_by_nation_df[filtered_by_nation_df['rb_br'].isin(se
 # 4th dropdown for the metric to analyze/visualize
 with col4:
     metrics = [ 
-        'rb_ground_frags_per_death', 
-        'rb_ground_frags_per_battle',
-        'rb_win_rate',
-        'rb_battles',  
-        'rb_air_frags_per_death', 
-        'rb_air_frags_per_battle' 
+        'RB Ground K/D', 
+        'RB Ground Kills per Battle',
+        'RB Win Rate',
+        'RB Battles',  
+        'RB Air K/D', 
+        'RB Air Kills per Battle' 
     ]
     selected_metric = st.selectbox("Metric", metrics, index=0)  # Defaults to the first metric
 
@@ -130,7 +139,6 @@ final_filtered_df = final_filtered_df[
     (final_filtered_df['date'] <= end_date)
 ]
 
-# show row count in the filtered DataFrame - used for debugging - un-comment if needed
 # st.write(f"Filtered DataFrame rows: {final_filtered_df.shape[0]}") 
 
 # plot the rows if there is data
@@ -151,11 +159,11 @@ if final_filtered_df.shape[0] > 0:
                           width=900,
                           height=600)
 
-    # Create line plot
+    # line plot
     fig = px.line(final_filtered_df, 
                   x='date', 
                   y=selected_metric, 
-                  color='name',  # this will create separate lines for each vehicle
+                  color='name',  # separate lines for each vehicle
                   title=f"<b>Performance Over Time</b><br><span style='font-size:16px;'>Selected Metric: {selected_metric}</span>",
                   labels={'date': 'Date', selected_metric: selected_metric}, 
                   hover_data=['name', 'nation', 'rb_br'])
@@ -169,7 +177,7 @@ if final_filtered_df.shape[0] > 0:
                         width = 900,
                         height = 600) 
 
-    # Show the plot and fill the container width (use_container_width = True) -- stylistic/helps format the plot on the screen
+    # Show the plot
     st.plotly_chart(fig, use_container_width=True) 
 
     # Show the boxplot
@@ -192,6 +200,15 @@ wr_df = data.copy()
 
 # convert date column in datetime format
 wr_df['date'] = pd.to_datetime(wr_df['date'])
+
+# rename columns
+
+wr_df = wr_df.rename(columns = {'rb_ground_frags_per_death': 'RB Ground K/D',
+                                    'rb_ground_frags_per_battle': 'RB Ground Kills per Battle',
+                                    'rb_win_rate': 'RB Win Rate',
+                                    'rb_battles': 'RB Battles',  
+                                    'rb_air_frags_per_death': 'RB Air K/D', 
+                                    'rb_air_frags_per_battle':'RB Air Kills per Battle'})
 
 # Get unique vehicle types from the 'cls' column
 vehicle_types = wr_df['cls'].unique()
@@ -229,14 +246,14 @@ filtered_df = wr_df[
 
 # make a br_range variable - this will be a more generic/broad category
 filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int) # e.g., 1.0, 1.3, and 1.7 will all be 1 for br_range (a broad category)
-agg_wr_df = filtered_df.groupby(['nation', 'br_range']).rb_win_rate.mean().reset_index()
-agg_wr_pivot = agg_wr_df.pivot(index='nation', columns='br_range', values='rb_win_rate')
+agg_wr_df = filtered_df.groupby(['nation', 'br_range'])['RB Win Rate'].mean().reset_index()
+agg_wr_pivot = agg_wr_df.pivot(index='nation', columns='br_range', values='RB Win Rate')
 
 # create heatmap
 fig_wr_heatmap = px.imshow(
     agg_wr_pivot,
     color_continuous_scale='RdBu',
-    labels=dict(x='BR Range', y='Nation', color='rb_win_rate')
+    labels=dict(x='BR Range', y='Nation', color='RB Win Rate')
 )
 
 # let us show all x-axis ticks
@@ -266,14 +283,6 @@ st.divider()
 # k-means clustering
 
 #######################################################################################################################
-
-import streamlit as st
-import pandas as pd
-import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-import plotly.express as px
-from datetime import datetime, timedelta
 
 st.header('k-Means Clustering')
 st.subheader('Ranked Ground Vehicle Performance Groups')
@@ -315,22 +324,22 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     return fig
 
 # Clustering metrics
-key_metrics = ['rb_ground_frags_per_death', 'rb_ground_frags_per_battle']
+key_metrics = ['RB Ground K/D', 'RB Ground Kills per Battle']
 
 # Processing function with caching
 @st.cache_data
 def filter_and_segment_data(df, key_metrics):
     recent_date = datetime.now() - timedelta(days=30)
     # Filter data for the last 30 days and drop rows with NaN in key metrics - including win rate
-    filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics + ['rb_win_rate'])
+    filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics + ['RB Win Rate'])
     filtered_df = filtered_df[~filtered_df['cls'].isin(['Fleet', 'Aviation'])]
     filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
     
     # Group by vehicle and aggregate key metrics
     aggregated_df = filtered_df.groupby('name', as_index=False).agg({
-        'rb_ground_frags_per_death': 'mean',
-        'rb_ground_frags_per_battle': 'mean',
-        'rb_win_rate': 'mean',
+        'RB Ground K/D': 'mean',
+        'RB Ground Kills per Battle': 'mean',
+        'RB Win Rate': 'mean',
         'br_range': 'first',
         'cls': 'first',
         'nation': 'first'
@@ -379,14 +388,16 @@ if not selected_br_data.empty:
     st.dataframe(clustering_results)
     st.success(f"Clustering completed for BR {selected_br}.", icon="✅")
 
+    st.divider()
+
     st.header("Linear Regression Applied to K-Means Cluster Results")
     st.write(f"Dependent variable (y) = Win Rate")
     st.write(f"Independent variable (x) = K/D")
 
     fig = plot_scatter_plot(
         clustering_results,
-        x_metric='rb_ground_frags_per_death',
-        y_metric='rb_win_rate', 
+        x_metric='RB Ground K/D',
+        y_metric='RB Win Rate', 
         color_metric='performance_label'
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -458,9 +469,9 @@ st.divider()
 st.header("Bayesian A/B Testing")
 st.subheader("Calculate the Probability that One Nation (A) Has a Better Win Rate than Another Nation (B)")
 st.write("""This tool tests the win rates between two nations at a specified BR range using Bayesian statistical methods. 
-            Historical data from the last 60 days is used in conjunction with non-informative priors. *Monte Carlo* simulation 
-            is employed to create the posterior distributions for *win rates*, and the *probability* that the first selected nation's win rate is **better**
-            than the second nation's win rate is computed. Additionally, the distribution of differences between the win rates are plotted along with 
+            *Monte Carlo* simulation is ran on historical performance data combined with non-informative priors
+            to calculate the *probability* that the first selected nation's win rate is **better**
+            than the second nation's win rate. Additionally, the distribution of differences between the win rates are plotted along with 
             a *95% credibility interval*. 
             """)
 st.write("**Please select two nations to run a Bayesian statistical analysis on *win rates***")
@@ -503,11 +514,14 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
 
     with bayes_col1:
         # results - probability that A is better than B
-        st.markdown(
-        f"""Probability that the **{nation_one}** has a better win rate than **{nation_two}** = 
-            <span style='color: green; font-weight:bold;'>{round(prob_vehicle_one_beats_vehicle_two,1)}%</span>""",
-            unsafe_allow_html=True
-        )
+        # st.markdown(
+        # f"""Probability that the **{nation_one}** has a better win rate than **{nation_two}** = 
+          #   <span style='color: green; font-weight:bold;'>{round(prob_vehicle_one_beats_vehicle_two,1)}%</span>""",
+          #   unsafe_allow_html=True
+        # )
+        
+        delta_for_metric = '+' if prob_vehicle_one_beats_vehicle_two > 50 else '-'
+        st.metric(label=f"Probability {nation_one} win rate is better than {nation_two} win rate", value=f'{round(prob_vehicle_one_beats_vehicle_two,1)}%', delta = delta_for_metric)
 
         # credibility interval
         st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
@@ -517,7 +531,8 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
 
 
     with bayes_col2:
-        st.metric(label=f"Probability {nation_one} win rate > {nation_two} win rate", value=round(prob_vehicle_one_beats_vehicle_two,1))
+        st.write("") # used to create space
+        #  st.metric(label=f"Probability {nation_one} win rate > {nation_two} win rate", value=round(prob_vehicle_one_beats_vehicle_two,1))
     
     return test_samples, control_samples, diff_samples, credible_interval
 
@@ -574,12 +589,20 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
     st.plotly_chart(fig2b, use_container_width=True)
 
 
-# User inputs, filtering, and running the Bayesian test
+# User inputs, filtering, and running the Bayesian test #
 
+# create copy
 df_bayes = data.copy()
 
+df_bayes = df_bayes.rename(columns = {'rb_ground_frags_per_death': 'RB Ground K/D',
+                                    'rb_ground_frags_per_battle': 'RB Ground Kills per Battle',
+                                    'rb_win_rate': 'RB Win Rate',
+                                    'rb_battles': 'RB Battles',  
+                                    'rb_air_frags_per_death': 'RB Air K/D', 
+                                    'rb_air_frags_per_battle':'RB Air Kills per Battle'})
+
 # Filter for ground vehicles only and remove nulls in 'rb_win_rate'
-df_bayes_filtered = df_bayes[(df_bayes['cls'] == 'Ground_vehicles') & df_bayes['rb_win_rate'].notna()]
+df_bayes_filtered = df_bayes[(df_bayes['cls'] == 'Ground_vehicles') & df_bayes['RB Win Rate'].notna()]
 
 # Convert to datetime and filter for the last 60 days
 df_bayes_filtered['date'] = pd.to_datetime(df_bayes_filtered['date'], errors='coerce')
@@ -601,14 +624,14 @@ with col1:
     st.subheader("Nation One Selection")
     nation_one = st.selectbox("Select Nation for First Group:", sorted(df_bayes_filtered['nation'].unique()))
     if nation_one:
-        nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['rb_win_rate']
+        nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['RB Win Rate']
 
 # Second nation selection
 with col2:
     st.subheader("Nation Two Selection")
     nation_two = st.selectbox("Select Nation for Second Group:", sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
     if nation_two:
-        nation_two_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]['rb_win_rate']
+        nation_two_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]['RB Win Rate']
 
 # Run Bayesian A/B testing if both series are defined
 if 'nation_one_series' in locals() and 'nation_two_series' in locals():
@@ -628,7 +651,7 @@ if 'nation_one_series' in locals() and 'nation_two_series' in locals():
     create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
 
     # Display difference distribution plot
-    st.subheader("Distribution of Differences in Win Rates")
+    st.subheader("Distribution of Win Rate Differences from 10,000 Simulations")
     st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
     create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
 else:
