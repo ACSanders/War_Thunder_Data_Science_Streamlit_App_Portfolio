@@ -1,4 +1,4 @@
-# War Thunder Science
+# War Thunder Data Science
 ### Unveiling War Thunder Trends and Vehicle Performance with Bayesian A/B Testing, k-Means Clustering, Regression, and Statistical Insights
 Developed and maintained by A. C. Sanders (2024)
 
