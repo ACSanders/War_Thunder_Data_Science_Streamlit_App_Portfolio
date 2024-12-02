@@ -26,8 +26,12 @@ Developed and maintained by A. C. Sanders (2024)
 - **Scikit-learn**
 
 ## License
-This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.
-To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/.
+This project is licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html). See the LICENSE file for details.
+
+## Data License
+This project uses, transforms, and analyzes data from the **WT Data Project**, which is licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html).
+
+Data from the WT Data Project is also based on **ThunderSkill** data.
 
 ## Acknowledgmments
 - Special thanks to **ThunderSkill** for sharing the data needed for the statistical tests and machine learning models. [ThunderSkill](https://thunderskill.com/en)
