@@ -149,16 +149,22 @@ if final_filtered_df.shape[0] > 0:
                      color='name',  # color the boxes by vehicle
                      title=f"<b>Distribution of {selected_metric} by Vehicle</b>",
                      labels={'name': 'Vehicle Name', selected_metric: selected_metric})
-    
-    fig_box.update_layout(template='plotly')
 
     # additional updates to help this look better on phones
-    fig_box.update_layout(title=dict(font=dict(size=16)), 
+    fig_box.update_layout(template = 'plotly',
+                          title=dict(font=dict(size=16)), 
                           xaxis_title=dict(font=dict(size=12)), 
                           yaxis_title=dict(font=dict(size=12)),
                           margin=dict(l=10, r=10, t=40, b=10),  # small margins -- should look better on phones
                           font=dict(size=10),  # smaller font
-                          dragmode='pan')
+                          dragmode='pan',
+                          legend=dict(orientation='h',
+                                      yanchor='top',
+                                      y=-0.1,
+                                      xanchor='center',
+                                      x=0.5 
+                                     )
+    )
 
     # line plot
     fig = px.line(final_filtered_df, 
@@ -178,7 +184,13 @@ if final_filtered_df.shape[0] > 0:
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=10),  # margins -- should look better on phone when small
         font=dict(size=10),
-        dragmode='pan'  # panning
+        dragmode='pan',  # panning
+        legend=dict(orientation='h',
+                    yanchor='top',
+                    y=-0.1,
+                    xanchor='center',
+                    x=0.5 
+                    )
     ) 
 
     # Show lines chart
@@ -284,6 +296,7 @@ fig_wr_heatmap = px.imshow(
 fig_wr_heatmap.update_xaxes(tickmode='linear')
 
 fig_wr_heatmap.update_traces(
+    showscale = False, # this takes up room on mobile -- experiment with removing it
     text=agg_wr_pivot.round(1).astype(str),  # round values to 1 decimal and convert to string
     texttemplate="%{text}",  # rounded values as text
     textfont=dict(size=8),  # smaller - adjust font size from 10 to 8
@@ -353,7 +366,13 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         legend_title=dict(text=color_metric, font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=10),
         font=dict(size=10),
-        dragmode="pan"  # panning
+        dragmode="pan",  # panning
+        legend=dict(orientation='h',
+                    yanchor='top',
+                    y=-0.1,
+                    xanchor='center',
+                    x=0.5 
+                    )
     )
     
     # markers
@@ -613,7 +632,13 @@ def create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehi
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=30), 
         font=dict(size=10), 
-        dragmode="pan"  # panning - should help on mobile
+        # dragmode="pan",  # panning - should help on mobile
+        legend=dict(orientation='h',
+                    yanchor='top',
+                    y=-0.1,
+                    xanchor='center',
+                    x=0.5 
+                    )
     )
     
     # show
@@ -653,7 +678,13 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=30), 
         font=dict(size=10),
-        dragmode="pan" 
+        # dragmode="pan",
+        legend=dict(orientation='h',
+                    yanchor='top',
+                    y=-0.1,
+                    xanchor='center',
+                    x=0.5 
+                    )
     )
 
     # show
