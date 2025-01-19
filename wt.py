@@ -239,6 +239,9 @@ filtered_df = wr_df[
     (wr_df['date'] <= end_date)
 ]
 
+# need to drop a few rows where the vehicles don't have values for the rb_br column
+filtered_df = filtered_df[filtered_df['rb_br'].notnull()]
+
 # make a br_range variable - this will be a more generic/broad category (too granular causes issues and takes up resources)
 filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int) # e.g., 1.0, 1.3, and 1.7 will all be 1 for br_range (a broad category)
 agg_wr_df = filtered_df.groupby(['nation', 'br_range'])['RB Win Rate'].mean().reset_index()
