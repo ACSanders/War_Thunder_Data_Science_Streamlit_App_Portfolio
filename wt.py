@@ -10,6 +10,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import beta, norm, uniform
 import matplotlib.pyplot as plt
+import time
 
 
 title_col, space_col, logo_col = st.columns([4,1,1])
@@ -19,7 +20,7 @@ with title_col:
             # War Thunder Data Science :boom:
             **Unveiling War Thunder Trends and Vehicle Performance with Bayesian A/B Testing, k-Means Clustering, Regression, and Statistical Insights**
             """)
-    st.write('Developed by **A.C. Sanders** - also known in the War Thunder community as *DrKnoway*')
+    st.write('Developed by **A.C. Sanders** - also known in the War Thunder community as **DrKnoway**')
 
 with space_col:
     st.empty() # used to add padding for logo
@@ -544,6 +545,15 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
     test_samples = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test, size=n_simulations)
     control_samples = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control, size=n_simulations)
     
+    for i in range(n_simulations):
+            test_samples[i] = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test)
+            control_samples[i] = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control)
+
+            # Update progress bar
+            progress_bar.progress(int(((i + 1) / n_simulations) * 100))
+            time.sleep(0.01) 
+
+
     # probability that vehicle one beats vehicle two
     prob_vehicle_one_beats_vehicle_two = round(np.mean(test_samples > control_samples), 2) * 100
     
@@ -598,6 +608,7 @@ def create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehi
     
     # show
     st.plotly_chart(fig_a, use_container_width=True)
+    return fig_a
 
 # plotting function for difference distribution - 
 def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, vehicle_two_name):
@@ -637,6 +648,7 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
 
     # show
     st.plotly_chart(fig2b, use_container_width=True)
+    return fig2b
 
 
 # User inputs, filtering, and running the Bayesian test #
@@ -688,6 +700,9 @@ with col2:
 if 'nation_one_series' in locals() and 'nation_two_series' in locals():
     st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
 
+    #experimental - use progress bar
+    progress_bar = st.progress(0)
+
     test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(
         nation_one_series, nation_two_series, nation_one, nation_two
     )
@@ -727,4 +742,4 @@ st.success(f"Bayesian analysis complete.", icon="✅")
 
 st.divider()
 
-st.write('2024 | Developed and maintained by A. C. Sanders')
+st.write('22025 | Developed and maintained by A. C. Sanders | [adamsandersc@gmail.com](mailto:adamsandersc@gmail.com)')
