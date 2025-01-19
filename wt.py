@@ -576,8 +576,11 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
         delta_for_metric = '+' if prob_vehicle_one_beats_vehicle_two > 50 else '-'
         st.metric(label=f"Probability {nation_one} win rate is better than {nation_two} win rate", value=f'{round(prob_vehicle_one_beats_vehicle_two,1)}%', delta = delta_for_metric)
 
-        # credibility interval
-        st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
+        credibility_column = st.columns(1)[0]
+        with credibility_column:
+            # credibility interval
+            # st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
+            st.warning(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
 
         # most likely lift = median
         st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
@@ -696,11 +699,13 @@ with col1:
 with col2:
     st.subheader("Nation Two Selection")
     nation_two = st.selectbox("Select Nation for Second Group:", sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
- 
+
+st.write(":point_down: Click the button below to run the Bayesian A/B test on win rates")
+
 # Run Bayesian A/B testing
 if nation_one and nation_two:
     # button -- Bayesian A/B test
-    if st.button("Run Bayesian A/B Test"):
+    if st.button("Perform Bayesian Analysis"):
         st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
         
         # filter based on nations select
