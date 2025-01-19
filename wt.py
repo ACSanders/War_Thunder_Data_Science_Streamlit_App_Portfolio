@@ -257,21 +257,40 @@ fig_wr_heatmap = px.imshow(
 # let us show all x-axis ticks
 fig_wr_heatmap.update_xaxes(tickmode='linear')
 
+# adjust tick angles for better viewing
+fig_wr_heatmap.update_xaxes(tickangle=45)
+fig_wr_heatmap.update_yaxes(tickangle=0)
+
 fig_wr_heatmap.update_traces(
     text=agg_wr_pivot.round(1).astype(str),  # round values to 1 decimal and convert to string
     texttemplate="%{text}",  # rounded values as text
-    textfont=dict(size=10),  # font size
+    textfont=dict(size=8),  # smaller - adjust font size from 10 to 8
     hoverinfo='text'  # hover info - show the values
 )
 
 fig_wr_heatmap.update_layout(
     template='plotly',
-    width=900,   
-    height=700   
+    autosize = True, # attempt to make this look better on phones
+    dragmode = 'pan',
+    # xaxis=dict(fixedrange=False),  # horiz zoom
+    # yaxis=dict(fixedrange=False),  # vert zoom
+    # width=700,   
+    # height=500,
+    margin=dict(l=10, r=10, t=30, b=10),  # attempt to adjust margin -- to make visually better on phones
+    font=dict(size=8), # make font small
 )
 
 # Show heatmap
 st.plotly_chart(fig_wr_heatmap, use_container_width=True)
+
+# download button
+download_heatmap_image = fig_wr_heatmap.to_image(format="png")  # make image
+st.download_button(
+    label="Download Heatmap as PNG",
+    data=download_heatmap_image,
+    file_name="heatmap.png",
+    mime="image/png",
+)
 
 st.divider()
 
