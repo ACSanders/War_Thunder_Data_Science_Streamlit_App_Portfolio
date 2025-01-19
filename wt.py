@@ -118,7 +118,7 @@ final_filtered_df = df_copy[
 ]
 
 # sort by date - get unique dates - format using dt.strftime()
-unique_dates = sorted(df_copy['date'].dt.strftime('%m/%d/%y').unique())
+unique_dates = df_copy['date'].sort_values().dt.strftime('%m/%d/%y').unique()
 
 #date range slider
 date_range = st.select_slider(
