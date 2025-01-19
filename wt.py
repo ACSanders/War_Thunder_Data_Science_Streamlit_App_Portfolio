@@ -313,6 +313,7 @@ fig_wr_heatmap.update_layout(
     # height=500,
     margin=dict(l=10, r=10, t=30, b=10),  # attempt to adjust margin -- to make visually better on phones
     font=dict(size=8), # make font small
+    coloraxis=None,
 )
 
 # Show heatmap
