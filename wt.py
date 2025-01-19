@@ -608,7 +608,7 @@ def create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehi
     fig_a.update_layout(
         autosize=True, 
         height=700,
-        title=dict(font=dict(size=16)),
+        # title=dict(font=dict(size=16)),
         xaxis_title=dict(font=dict(size=12)),
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=30), 
@@ -648,7 +648,7 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
     fig2b.update_layout(
         height=700,
         autosize=True,
-        title=dict(font=dict(size=16)), 
+        # title=dict(font=dict(size=16)), 
         xaxis_title=dict(font=dict(size=12)),
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=30), 
@@ -731,7 +731,7 @@ if nation_one and nation_two:
         fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
 
         # Difference distribution plot
-        st.subheader("Distribution of Win Rate Differences from 10,000 Simulations")
+        st.subheader("Distribution of Win Rate Differences from 5,000 Simulations")
         st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
         fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
 
