@@ -582,9 +582,11 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
             # st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
             st.warning(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
 
+        lift_column = st.columns(1)[0]
+        with lift_column:
         # most likely lift = median
-        st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
-
+        #st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
+            st.warning(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
 
     with bayes_col2:
         st.write("") # used to create space
@@ -728,26 +730,10 @@ if nation_one and nation_two:
         st.subheader(f"Posterior Distributions Win Rates for {nation_one} and {nation_two}")
         fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
 
-        # download posterior plot
-        st.download_button(
-            label="Download Posterior Distribution Plot",
-            data=fig_a.to_image(format="png"),
-            file_name="posterior_distribution.png",
-            mime="image/png"
-        )
-
         # Difference distribution plot
         st.subheader("Distribution of Win Rate Differences from 10,000 Simulations")
         st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
         fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
-
-        # download diff dist plot
-        st.download_button(
-            label="Download Difference Distribution Plot",
-            data=fig2b.to_image(format="png"),
-            file_name="difference_distribution.png",
-            mime="image/png"
-        )
 
         st.success(f"Bayesian analysis complete.", icon="✅")
 
