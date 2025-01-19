@@ -129,7 +129,7 @@ date_range = st.select_slider(
 )
 
 # make start and end dates datetime
-start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+start_date, end_date = pd.to_datetime(date_range[0], format='%m/%d/%y'), pd.to_datetime(date_range[1])
 
 # date range filtering
 final_filtered_df = final_filtered_df[
