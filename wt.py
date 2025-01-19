@@ -220,7 +220,7 @@ selected_vehicle_type = st.selectbox(
 )
 
 # Sort by date and make sure it is formatted (MM/DD/YY) using dt.strftime()
-unique_dates = sorted(wr_df['date'].dt.strftime('%m/%d/%y').unique())
+unique_dates = df_copy['date'].sort_values().dt.strftime('%m/%d/%y').unique()
 
 # date range slider - additional filter
 date_range = st.select_slider(
@@ -230,7 +230,7 @@ date_range = st.select_slider(
 )
 
 # convert start and end to datetime
-start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+start_date, end_date = pd.to_datetime(date_range[0], format='%m/%d/%y'), pd.to_datetime(date_range[1])
 
 # Filter for type and date
 filtered_df = wr_df[
