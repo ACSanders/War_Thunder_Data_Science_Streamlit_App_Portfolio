@@ -552,12 +552,12 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
         test_samples[i] = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test)
         control_samples[i] = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control)
         
-        # update every 10 iteration
-        if i % 50 == 0:
+        # update every 100 iteration
+        if i % 100 == 0:
             progress_bar.progress(int(((i + 1) / n_simulations) * 100))
         
         # this could be optional -- a delay
-        time.sleep(0.005)  # need to play with this
+        # time.sleep(0.005)  # this was slowing it down
 
     # probability that vehicle one beats vehicle two
     prob_vehicle_one_beats_vehicle_two = round(np.mean(test_samples > control_samples), 2) * 100
