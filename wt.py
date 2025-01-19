@@ -149,11 +149,13 @@ if final_filtered_df.shape[0] > 0:
     
     fig_box.update_layout(template='plotly')
 
-    fig_box.update_layout(title=dict(font=dict(size=24)), 
-                          xaxis_title=dict(font=dict(size=18)), 
-                          yaxis_title=dict(font=dict(size=18)),
-                          width=900,
-                          height=600)
+    # additional updates to help this look better on phones
+    fig_box.update_layout(title=dict(font=dict(size=16)), 
+                          xaxis_title=dict(font=dict(size=12)), 
+                          yaxis_title=dict(font=dict(size=12)),
+                          margin=dict(l=10, r=10, t=40, b=10),  # small margins -- should look better on phones
+                          font=dict(size=10),  # smaller font
+                          dragmode='pan')
 
     # line plot
     fig = px.line(final_filtered_df, 
@@ -164,20 +166,41 @@ if final_filtered_df.shape[0] > 0:
                   labels={'date': 'Date', selected_metric: selected_metric}, 
                   hover_data=['name', 'nation', 'rb_br'])
     
-    fig.update_layout(template='plotly')
+    fig.update_traces(line=dict(width=2), mode='lines+markers')  # markers - check line width?
 
-    fig.update_traces(line=dict(width=2), mode='lines+markers')  
-    fig.update_layout(title=dict(font=dict(size=24)), 
-                        xaxis_title=dict(font=dict(size=18)), 
-                        yaxis_title=dict(font=dict(size=18)),
-                        width = 900,
-                        height = 600) 
+    fig.update_layout(
+        template='plotly',
+        title=dict(font=dict(size=16)),
+        xaxis_title=dict(font=dict(size=12)),
+        yaxis_title=dict(font=dict(size=12)),
+        margin=dict(l=10, r=10, t=40, b=10),  # margins -- should look better on phone when small
+        font=dict(size=10),
+        dragmode='pan'  # panning
+    ) 
 
     # Show lines chart
     st.plotly_chart(fig, use_container_width=True) 
 
+    # button for download
+    st.download_button(
+        label="Download Line Plot",
+        data=fig.to_image(format="png"),
+        file_name="line_plot.png",
+        mime="image/png",
+    )
+
+    
     # Show boxplot
     st.plotly_chart(fig_box, use_container_width=True)
+
+    # download button for box plot
+    st.download_button(
+        label="Download Boxplot",
+        data=fig_box.to_image(format="png"),
+        file_name="boxplot.png",
+        mime="image/png",
+    )
+
 else:
     st.write("No data available") # display this if selections and dataframe lack data
 
@@ -257,10 +280,6 @@ fig_wr_heatmap = px.imshow(
 # let us show all x-axis ticks
 fig_wr_heatmap.update_xaxes(tickmode='linear')
 
-# adjust tick angles for better viewing
-fig_wr_heatmap.update_xaxes(tickangle=45)
-fig_wr_heatmap.update_yaxes(tickangle=0)
-
 fig_wr_heatmap.update_traces(
     text=agg_wr_pivot.round(1).astype(str),  # round values to 1 decimal and convert to string
     texttemplate="%{text}",  # rounded values as text
@@ -324,18 +343,18 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     )
     
     fig.update_layout(
-        title=dict(font=dict(size=20)),
-        xaxis_title=x_metric,
-        yaxis_title=y_metric,
-        legend_title=dict(text=color_metric, font=dict(size=14)),
-        xaxis=dict(title_font=dict(size=16)),
-        yaxis=dict(title_font=dict(size=16)),
-        width=900,
-        height=600
+        template="plotly",
+        title=dict(font=dict(size=16)), 
+        xaxis=dict(title=x_metric, title_font=dict(size=12)),
+        yaxis=dict(title=y_metric, title_font=dict(size=12)),
+        legend_title=dict(text=color_metric, font=dict(size=12)),
+        margin=dict(l=10, r=10, t=40, b=10),
+        font=dict(size=10),
+        dragmode="pan"  # panning
     )
     
     # markers
-    fig.update_traces(marker=dict(size=8))
+    fig.update_traces(marker=dict(size=6))
     
     return fig
 
@@ -411,13 +430,22 @@ if not selected_br_data.empty:
     st.write(f"Independent variable (x) = K/D")
 
     # make scatter plots of vehicles
-    fig = plot_scatter_plot(
+    scatter_fig = plot_scatter_plot(
         clustering_results,
         x_metric='RB Ground K/D',
         y_metric='RB Win Rate', 
         color_metric='performance_label'
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(scatter_fig, use_container_width=True)
+
+    # download button for scatter plot
+    st.download_button(
+        label="Download Scatter Plot",
+        data=scatter_fig.to_image(format="png"),
+        file_name="scatter_plot.png",
+        mime="image/png",
+    )
+
 else:
     st.write(f"No data available for BR {selected_br}.")
 
@@ -555,7 +583,18 @@ def create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehi
     fig_a.update_traces(nbinsx = 100, autobinx = True, selector = {'type':'histogram'})
     fig_a.add_vline(x=test_samples.mean(), line_width = 3, line_dash='dash', line_color= 'hotpink', annotation_text = f'mean <br> {round(test_mean,1)}', annotation_position = 'bottom')
     fig_a.add_vline(x=control_samples.mean(), line_width = 3, line_dash='dash', line_color= 'purple', annotation_text = f'mean <br> {round(control_mean,1)}', annotation_position = 'bottom')
-    fig_a.update_layout(autosize = True, height = 700)
+    
+    # updates to help this look better on phones
+    fig_a.update_layout(
+        autosize=True, 
+        height=700,
+        title=dict(font=dict(size=16)),
+        xaxis_title=dict(font=dict(size=12)),
+        yaxis_title=dict(font=dict(size=12)),
+        margin=dict(l=10, r=10, t=40, b=30), 
+        font=dict(size=10), 
+        dragmode="pan"  # panning - should help on mobile
+    )
     
     # show
     st.plotly_chart(fig_a, use_container_width=True)
@@ -584,7 +623,17 @@ def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, ve
     fig2b.add_vline(x=0, line_width=3, line_dash='dot', line_color='orange', 
                     annotation_text='0', annotation_position='bottom')
 
-    fig2b.update_layout(height = 700, autosize=True)
+    # layout
+    fig2b.update_layout(
+        height=700,
+        autosize=True,
+        title=dict(font=dict(size=16)), 
+        xaxis_title=dict(font=dict(size=12)),
+        yaxis_title=dict(font=dict(size=12)),
+        margin=dict(l=10, r=10, t=40, b=30), 
+        font=dict(size=10),
+        dragmode="pan" 
+    )
 
     # show
     st.plotly_chart(fig2b, use_container_width=True)
@@ -649,12 +698,28 @@ if 'nation_one_series' in locals() and 'nation_two_series' in locals():
 
     # posterior distributions
     st.subheader(f"Posterior Distributions Win Rates for {nation_one} and {nation_two}")
-    create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
+    fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
+
+    # download posterior plot
+    st.download_button(
+        label="Download Posterior Distribution Plot",
+        data=fig_a.to_image(format="png"),
+        file_name="posterior_distribution.png",
+        mime="image/png"
+    )
 
     # difference distribution plot
     st.subheader("Distribution of Win Rate Differences from 10,000 Simulations")
     st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
-    create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
+    fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
+
+    # download button difference plot
+    st.download_button(
+        label="Download Difference Distribution Plot",
+        data=fig2b.to_image(format="png"),
+        file_name="difference_distribution.png",
+        mime="image/png"
+    )
 else:
     st.write("Please select both nations to run the Bayesian A/B test.")
 
