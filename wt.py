@@ -523,7 +523,7 @@ st.write("**Please select two nations to run a Bayesian statistical analysis on 
 
 # function to run Bayesian testing on numeric or continuous data
 # I originally developed this for test and control groups for A/B experiments and I've retained some of these names for variables
-def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, nation_two, n_simulations=10000):
+def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, nation_two, n_simulations=5000):
     # calculate sample statistics - we need these for posteriors
     test_mean, test_std = np.mean(nation_one_series), np.std(nation_one_series, ddof=1)
     control_mean, control_std = np.mean(nation_two_series), np.std(nation_two_series, ddof=1)
@@ -545,14 +545,10 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
     test_samples = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test, size=n_simulations)
     control_samples = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control, size=n_simulations)
     
-    for i in range(n_simulations):
-            test_samples[i] = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test)
-            control_samples[i] = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control)
-
-            # Update progress bar
-            progress_bar.progress(int(((i + 1) / n_simulations) * 100))
-            time.sleep(0.01) 
-
+    # experimental - progress bar -- might look cool
+    if progress_bar is not None:
+        for i in range(0, n_simulations, n_simulations // 100):  # every 1% of iterations
+            progress_bar.progress(int((i + 1) / n_simulations * 100)) 
 
     # probability that vehicle one beats vehicle two
     prob_vehicle_one_beats_vehicle_two = round(np.mean(test_samples > control_samples), 2) * 100
@@ -686,60 +682,61 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("Nation One Selection")
     nation_one = st.selectbox("Select Nation for First Group:", sorted(df_bayes_filtered['nation'].unique()))
-    if nation_one:
-        nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['RB Win Rate']
-
+ 
 # Second
 with col2:
     st.subheader("Nation Two Selection")
     nation_two = st.selectbox("Select Nation for Second Group:", sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
-    if nation_two:
+ 
+# Run Bayesian A/B testing
+if nation_one and nation_two:
+    # button -- Bayesian A/B test
+    if st.button("Run Bayesian A/B Test"):
+        st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
+        
+        # filter based on nations select
+        nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['RB Win Rate']
         nation_two_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]['RB Win Rate']
 
-# Run Bayesian A/B testing
-if 'nation_one_series' in locals() and 'nation_two_series' in locals():
-    st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
+        # Experimental - create progress bar
+        progress_bar = st.progress(0)
 
-    #experimental - use progress bar
-    progress_bar = st.progress(0)
+        # Go Bayesian
+        test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(
+            nation_one_series, nation_two_series, nation_one, nation_two
+        )
+        
+        # means for posteriors
+        test_mean = np.mean(test_samples)
+        control_mean = np.mean(control_samples)
 
-    test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(
-        nation_one_series, nation_two_series, nation_one, nation_two
-    )
-    
-    # means for posteriors
-    test_mean = np.mean(test_samples)
-    control_mean = np.mean(control_samples)
+        # Posterior distributions
+        st.subheader(f"Posterior Distributions Win Rates for {nation_one} and {nation_two}")
+        fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
 
-    # posterior distributions
-    st.subheader(f"Posterior Distributions Win Rates for {nation_one} and {nation_two}")
-    fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
+        # download posterior plot
+        st.download_button(
+            label="Download Posterior Distribution Plot",
+            data=fig_a.to_image(format="png"),
+            file_name="posterior_distribution.png",
+            mime="image/png"
+        )
 
-    # download posterior plot
-    st.download_button(
-        label="Download Posterior Distribution Plot",
-        data=fig_a.to_image(format="png"),
-        file_name="posterior_distribution.png",
-        mime="image/png"
-    )
+        # Difference distribution plot
+        st.subheader("Distribution of Win Rate Differences from 10,000 Simulations")
+        st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
+        fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
 
-    # difference distribution plot
-    st.subheader("Distribution of Win Rate Differences from 10,000 Simulations")
-    st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
-    fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
+        # download diff dist plot
+        st.download_button(
+            label="Download Difference Distribution Plot",
+            data=fig2b.to_image(format="png"),
+            file_name="difference_distribution.png",
+            mime="image/png"
+        )
 
-    # download button difference plot
-    st.download_button(
-        label="Download Difference Distribution Plot",
-        data=fig2b.to_image(format="png"),
-        file_name="difference_distribution.png",
-        mime="image/png"
-    )
-else:
-    st.write("Please select both nations to run the Bayesian A/B test.")
-
-st.success(f"Bayesian analysis complete.", icon="✅")
+        st.success(f"Bayesian analysis complete.", icon="✅")
 
 st.divider()
 
-st.write('22025 | Developed and maintained by A. C. Sanders | [adamsandersc@gmail.com](mailto:adamsandersc@gmail.com)')
+st.write('2025 | Developed and maintained by A. C. Sanders | [adamsandersc@gmail.com](mailto:adamsandersc@gmail.com)')
