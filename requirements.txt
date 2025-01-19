@@ -4,5 +4,5 @@ pandas
 plotly
 scikit-learn
 scipy
-statsmodels
 matplotlib
+kaleido
