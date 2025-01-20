@@ -1,6 +1,6 @@
 # War Thunder Data Science
 ### Unveiling War Thunder Trends and Vehicle Performance with Bayesian A/B Testing, k-Means Clustering, Regression, and Statistical Insights
-Developed and maintained by A. C. Sanders (2024)
+Developed and maintained by A. C. Sanders (2025)
 
 ## Description
 **War Thunder Data Science** is an interactive Streamlit app that leverages Bayesian A/B testing, k-means clustering, linear regression, and statistical methods to generate insights into War Thunder vehicle performance and player trends. Users can filter player data, analyze trends, uncover patterns, and explore different metrics like *K/D*, *Kills per Battle*, and *Win Rates*.
