@@ -147,12 +147,12 @@ if final_filtered_df.shape[0] > 0:
                      x='name',  # the categories - vehicles
                      y=selected_metric,  # metric
                      color='name',  # color the boxes by vehicle
-                     title=f"<b>Distribution of {selected_metric} by Vehicle</b>",
+                     # title=f"<b>Distribution of {selected_metric} by Vehicle</b>",
                      labels={'name': 'Vehicle Name', selected_metric: selected_metric})
 
     # additional updates to help this look better on phones
     fig_box.update_layout(template = 'plotly',
-                          title=dict(font=dict(size=16), pad=dict(t=100)), 
+                          # title=dict(font=dict(size=16), pad=dict(t=100)), 
                           xaxis_title=dict(font=dict(size=12)), 
                           yaxis_title=dict(font=dict(size=12)),
                           margin=dict(l=10, r=10, t=40, b=10),  # small margins -- should look better on phones
@@ -166,12 +166,14 @@ if final_filtered_df.shape[0] > 0:
                                      )
     )
 
+    st.write('**Performance Over Time**')
+    st.write(f'Selected metric: **{selected_metric}**')
     # line plot
     fig = px.line(final_filtered_df, 
                   x='date', 
                   y=selected_metric, 
                   color='name',  # separate lines for each vehicle
-                  title=f"<b>Performance Over Time</b><br><span style='font-size:16px;'>Selected Metric: {selected_metric}</span>",
+                  # title=f"<b>Performance Over Time</b><br><span style='font-size:16px;'>Selected Metric: {selected_metric}</span>",
                   labels={'date': 'Date', selected_metric: selected_metric}, 
                   hover_data=['name', 'nation', 'rb_br'])
     
@@ -179,7 +181,7 @@ if final_filtered_df.shape[0] > 0:
 
     fig.update_layout(
         template='plotly',
-        title=dict(font=dict(size=16), pad=dict(t=100)),
+        # title=dict(font=dict(size=16), pad=dict(t=100)),
         xaxis_title=dict(font=dict(size=12)),
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=10),  # margins -- should look better on phone when small
@@ -204,7 +206,7 @@ if final_filtered_df.shape[0] > 0:
         mime="image/png",
     )
 
-    
+    st.write(f'**Distribution of {selected_metric} by Vehicle**')
     # Show boxplot
     st.plotly_chart(fig_box, use_container_width=True)
 
@@ -361,12 +363,12 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         trendline = "ols",
         # apply it to the overall dataset and not the segments
         trendline_scope = "overall",
-        title="<b>Scatter Plot of K/D vs Win Rate Colored by Performance Cluster</b>"
+        # title="<b>Scatter Plot of K/D vs Win Rate Colored by Performance Cluster</b>"
     )
     
     fig.update_layout(
         template="plotly",
-        title=dict(font=dict(size=16), pad=dict(t=100)), 
+        # title=dict(font=dict(size=16), pad=dict(t=100)), 
         xaxis=dict(title=x_metric, title_font=dict(size=12)),
         yaxis=dict(title=y_metric, title_font=dict(size=12)),
         legend_title=dict(text=color_metric, font=dict(size=12)),
@@ -457,6 +459,8 @@ if not selected_br_data.empty:
     st.write(f"Dependent variable (y) = Win Rate")
     st.write(f"Independent variable (x) = K/D")
 
+    st.write('')
+    st.write(f'**Scatter Plot of K/D vs Win Rate Colored by Performance Cluster**')
     # make scatter plots of vehicles
     scatter_fig = plot_scatter_plot(
         clustering_results,
