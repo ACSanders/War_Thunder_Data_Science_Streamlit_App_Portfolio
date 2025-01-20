@@ -768,7 +768,7 @@ if nation_one and nation_two:
         control_mean = np.mean(control_samples)
 
         # Posterior distributions
-        st.subheader(f"Posterior Distributions Win Rates for {nation_one} and {nation_two}")
+        st.subheader(f"Posterior Distributions of Win Rates for {nation_one} and {nation_two}")
         fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
 
         # Difference distribution plot
