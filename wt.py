@@ -316,7 +316,7 @@ fig_wr_heatmap.update_layout(
     coloraxis_colorbar=dict(
         orientation='h', 
         yanchor='bottom',  
-        y=-0.15, 
+        y=-0.4, 
         xanchor='center',  
         x=0.5)
 )
