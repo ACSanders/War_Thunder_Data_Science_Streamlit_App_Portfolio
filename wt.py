@@ -152,7 +152,7 @@ if final_filtered_df.shape[0] > 0:
 
     # additional updates to help this look better on phones
     fig_box.update_layout(template = 'plotly',
-                          title=dict(font=dict(size=16), pad=dict(t=60)), 
+                          title=dict(font=dict(size=16), pad=dict(t=100)), 
                           xaxis_title=dict(font=dict(size=12)), 
                           yaxis_title=dict(font=dict(size=12)),
                           margin=dict(l=10, r=10, t=40, b=10),  # small margins -- should look better on phones
@@ -179,7 +179,7 @@ if final_filtered_df.shape[0] > 0:
 
     fig.update_layout(
         template='plotly',
-        title=dict(font=dict(size=16), pad=dict(t=60)),
+        title=dict(font=dict(size=16), pad=dict(t=100)),
         xaxis_title=dict(font=dict(size=12)),
         yaxis_title=dict(font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=10),  # margins -- should look better on phone when small
@@ -316,7 +316,7 @@ fig_wr_heatmap.update_layout(
     coloraxis_colorbar=dict(
         orientation='h', 
         yanchor='bottom',  
-        y=-0.3, 
+        y=-0.4, 
         xanchor='center',  
         x=0.5)
 )
@@ -366,7 +366,7 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     
     fig.update_layout(
         template="plotly",
-        title=dict(font=dict(size=16), pad=dict(t=60)), 
+        title=dict(font=dict(size=16), pad=dict(t=100)), 
         xaxis=dict(title=x_metric, title_font=dict(size=12)),
         yaxis=dict(title=y_metric, title_font=dict(size=12)),
         legend_title=dict(text=color_metric, font=dict(size=12)),
