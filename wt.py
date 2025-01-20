@@ -155,12 +155,12 @@ if final_filtered_df.shape[0] > 0:
                           # title=dict(font=dict(size=16), pad=dict(t=100)), 
                           xaxis_title=dict(font=dict(size=12)), 
                           yaxis_title=dict(font=dict(size=12)),
-                          margin=dict(l=10, r=10, t=40, b=10),  # small margins -- should look better on phones
+                          margin=dict(l=10, r=10, t=40, b=50),  # small margins -- should look better on phones
                           font=dict(size=10),  # smaller font
                           # dragmode='pan',
                           legend=dict(orientation='h',
                                       yanchor='top',
-                                      y=-0.1,
+                                      y=-0.35,
                                       xanchor='center',
                                       x=0.5 
                                      )
