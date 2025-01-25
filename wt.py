@@ -482,7 +482,7 @@ else:
     st.write(f"No data available for BR {selected_br}.")
 
 # regression info
-trendline_results = px.get_trendline_results(fig)
+trendline_results = px.get_trendline_results(scatter_fig)
 if not trendline_results.empty:
     # model_summary = trendline_results.iloc[0]["px_fit_results"].summary()
     px_fit_results = trendline_results.iloc[0]["px_fit_results"]
