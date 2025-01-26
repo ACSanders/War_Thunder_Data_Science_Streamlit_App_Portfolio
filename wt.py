@@ -353,7 +353,7 @@ st.write("""k-Means clustering is performed on several engagement variables like
 
 # scatter plot function
 def plot_scatter_plot(df, x_metric, y_metric, color_metric):
-    fig = px.scatter(
+    scatter_fig = px.scatter(
         df,
         x=x_metric,
         y=y_metric,
@@ -366,7 +366,7 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         # title="<b>Scatter Plot of K/D vs Win Rate Colored by Performance Cluster</b>"
     )
     
-    fig.update_layout(
+    scatter_fig.update_layout(
         template="plotly",
         # title=dict(font=dict(size=16), pad=dict(t=100)), 
         xaxis=dict(title=x_metric, title_font=dict(size=12)),
@@ -384,9 +384,9 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
     )
     
     # markers
-    fig.update_traces(marker=dict(size=6))
+    scatter_fig.update_traces(marker=dict(size=6))
     
-    return fig
+    return scatter_fig
 
 # the key metrics used for clustering - we can update this
 key_metrics = ['RB Ground K/D', 'RB Ground Kills per Battle']
