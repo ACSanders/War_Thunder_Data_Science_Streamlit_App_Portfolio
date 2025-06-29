@@ -198,26 +198,9 @@ if final_filtered_df.shape[0] > 0:
     # Show lines chart
     st.plotly_chart(fig, use_container_width=True) 
 
-    # button for download
-    st.download_button(
-        label="Download Line Plot",
-        # data=fig.to_image(format="png"), # not supported any more
-        data = fig.to_html(),
-        file_name="line_plot.png",
-        mime="image/png",
-    )
-
     st.write(f'**Distribution of {selected_metric} by Vehicle**')
     # Show boxplot
     st.plotly_chart(fig_box, use_container_width=True)
-
-    # download button for box plot
-    st.download_button(
-        label="Download Boxplot",
-        data=fig_box.to_image(format="png"),
-        file_name="boxplot.png",
-        mime="image/png",
-    )
 
 else:
     st.write("No data available") # display this if selections and dataframe lack data
@@ -326,15 +309,6 @@ fig_wr_heatmap.update_layout(
 
 # Show heatmap
 st.plotly_chart(fig_wr_heatmap, use_container_width=True)
-
-# download button
-download_heatmap_image = fig_wr_heatmap.to_image(format="png")  # make image
-st.download_button(
-    label="Download Heatmap as PNG",
-    data=download_heatmap_image,
-    file_name="heatmap.png",
-    mime="image/png",
-)
 
 st.divider()
 
@@ -470,14 +444,6 @@ if not selected_br_data.empty:
         color_metric='performance_label'
     )
     st.plotly_chart(scatter_fig, use_container_width=True)
-
-    # download button for scatter plot
-    st.download_button(
-        label="Download Scatter Plot",
-        data=scatter_fig.to_html(),
-        file_name="scatter_plot.png",
-        mime="image/png",
-    )
 
 else:
     st.write(f"No data available for BR {selected_br}.")
