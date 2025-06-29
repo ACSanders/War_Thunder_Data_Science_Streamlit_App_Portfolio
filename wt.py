@@ -201,7 +201,8 @@ if final_filtered_df.shape[0] > 0:
     # button for download
     st.download_button(
         label="Download Line Plot",
-        data=fig.to_image(format="png"),
+        # data=fig.to_image(format="png"), # not supported any more
+        data = fig.to_html(),
         file_name="line_plot.png",
         mime="image/png",
     )
@@ -473,7 +474,7 @@ if not selected_br_data.empty:
     # download button for scatter plot
     st.download_button(
         label="Download Scatter Plot",
-        data=scatter_fig.to_image(format="png"),
+        data=scatter_fig.to_html(),
         file_name="scatter_plot.png",
         mime="image/png",
     )
