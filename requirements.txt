@@ -3,7 +3,7 @@ numpy
 pandas
 plotly
 scikit-learn
-scipy==1.10.1
-statsmodels==0.13.5
+scipy==1.11.4
+statsmodels==0.14.1
 matplotlib
 # kaleido
