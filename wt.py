@@ -9,8 +9,6 @@ from datetime import datetime, timedelta
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import beta, norm, uniform
-import matplotlib.pyplot as plt
-import time
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -20,16 +18,16 @@ title_col, space_col, logo_col = st.columns([4,1,1])
 with title_col:
     st.write("""
             # War Thunder Data Science :boom:
-            **Unveiling War Thunder Trends and Vehicle Performance with Bayesian A/B Testing, k-Means Clustering, Regression, and Statistical Insights**
+            **Get Insights Using Player Stats, Bayesian Analyses, and k-Means Clustering**
             """)
-    st.write('Developed by **A.C. Sanders** - also known in the War Thunder community as **DrKnoway**')
+    # st.write('Developed by **A.C. Sanders**')
 
 with space_col:
     st.empty() # used to add padding for logo
 
 with logo_col:
-    st.image("knoway_eye.png",
-              width=200,
+    st.image("war_thunder_stats_logo_hd.png",
+              width=120,
               )
 
 # header for the section that generates line charts for vehicle performance over time
@@ -86,8 +84,10 @@ with col3:
     
     # check if br_values is not empty
     if br_values.size > 0:  # Check if br_values has values
-        # set default to 1.0 if it is in br_values
-        default_br = [1.0] if 1.0 in br_values else [sorted(br_values)[0]]
+        # set default to max if it is in br_values - should currently be 12.0
+        max_br = float(np.nanmax(br_values))
+        # default_br = [1.0] if 1.0 in br_values else [sorted(br_values)[0]] # old code that set it to 1.0 default
+        default_br = [max_br]
     else:
         default_br = []  # Or we can set to another default (empty list or some value)
     
@@ -209,11 +209,11 @@ st.divider()
 
 ####################################################################################################################################
 
-# Heatmap of Aggregated Win Rates
+# Nation Score Card Stats - K/D
 
 ####################################################################################################################################
 
-st.subheader("Aggregated Win Rates by Nation")
+st.header("Nation Stats")
 
 # copy of our data
 wr_df = data.copy()
@@ -271,6 +271,155 @@ filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int) # e.g., 1.0
 agg_wr_df = filtered_df.groupby(['nation', 'br_range'])['RB Win Rate'].mean().reset_index()
 agg_wr_pivot = agg_wr_df.pivot(index='nation', columns='br_range', values='RB Win Rate')
 
+##### nation K/D score cards (delta vs baseline) 
+st.subheader("Nation K/D")
+
+kd_col = None
+if selected_vehicle_type == "Ground_vehicles":
+    kd_col = "RB Ground K/D"
+elif selected_vehicle_type == "Aviation":
+    kd_col = "RB Air K/D"
+
+if kd_col and kd_col in filtered_df.columns and not filtered_df.empty:
+    # BR choices come from the *already* date+type filtered frame
+    br_choices = (
+        filtered_df["rb_br"]
+        .dropna()
+        .unique()
+    )
+    if br_choices.size:
+        # sort high → low, default to MAX BR
+        br_choices = sorted(map(float, br_choices), reverse=True)
+        selected_br_for_kd = st.selectbox(
+            "Select BR for K/D score cards (does not affect heatmap):",
+            options=br_choices,
+            index=0,  # highest BR first
+            format_func=lambda x: f"{x:.1f}"
+        )
+
+        st.caption("**Note:** BR filter above applies only to the K/D score cards. The heatmap reflects all BRs.")
+
+        # Filter ONLY for the chosen BR for the score cards
+        kd_df = filtered_df.loc[filtered_df["rb_br"] == float(selected_br_for_kd), ["nation", kd_col]].copy()
+        kd_df[kd_col] = pd.to_numeric(kd_df[kd_col], errors="coerce")
+        kd_df = kd_df.dropna(subset=[kd_col, "nation"])
+
+        if kd_df.empty:
+            st.info(f"No K/D data for BR {selected_br_for_kd:.1f} with current filters.")
+        else:
+            # baseline across all nations for this BR
+            baseline = kd_df[kd_col].mean()
+
+            # mean K/D for this BR
+            nation_kd = (
+                kd_df.groupby("nation", sort=False, as_index=False)[kd_col]
+                .mean()
+                .rename(columns={kd_col: "KD"})
+                .dropna(subset=["KD"])
+            )
+
+            # baseline k/d all nations
+            st.info(
+                f"**Baseline K/D (all nations, BR {selected_br_for_kd:.1f})** "
+                f"for {selected_vehicle_type.replace('_',' ')} "
+                f"from {start_date.date()} to {end_date.date()}: **{baseline:.3f}**"
+            )
+
+            # two rows of 5 score cards - I'm capping it at 10 if there's more
+            nation_kd = nation_kd.head(10)
+            row1 = st.columns(5)
+            row2 = st.columns(5)
+
+            for i, row in enumerate(nation_kd.itertuples(index=False), start=0):
+                kd_val = round(row.KD, 3)
+                delta_val = row.KD - baseline                     # >0 → green arrow; <0 → red
+                delta_str = f"{delta_val:+.3f}"
+
+                if i < 5:
+                    with row1[i]:
+                        st.metric(label=row.nation, value=kd_val, delta=delta_str)
+                elif i < 10:
+                    with row2[i - 5]:
+                        st.metric(label=row.nation, value=kd_val, delta=delta_str)
+    else:
+        st.info("No BR values available for the selected date range and vehicle type.")
+else:
+    st.info("Select Ground or Aviation to view nation K/D score cards.")
+
+st.caption(
+    "**Arrows:** Green = above baseline K/D, Red = below."
+)
+
+st.divider()
+
+####################################################################################################################################
+
+# World Map of Battles
+
+####################################################################################################################################
+
+# ==== Battles by Nation (same BR as K/D cards)
+st.subheader(f"Total Vehicle Battles by Nation at BR {selected_br_for_kd:.1f}")
+
+battles_col = "RB Battles"
+if battles_col not in filtered_df.columns:
+    st.info("No 'RB Battles' column available for the map.")
+else:
+    # same slice as K/D cards: date + vehicle type + BR
+    map_df = filtered_df.loc[
+        filtered_df["rb_br"] == float(selected_br_for_kd),
+        ["nation", battles_col]
+    ].dropna(subset=["nation"])
+
+    if map_df.empty or map_df[battles_col].sum() == 0:
+        st.info(f"No battle data for BR {selected_br_for_kd:.1f} with current filters.")
+    else:
+        # sum battles per nation
+        battles_df = (map_df
+            .groupby("nation", as_index=False)[battles_col].sum()
+            .rename(columns={battles_col: "Battles"}))
+
+        # Map game nations -> ISO-3 (USSR -> Russia)
+        nation_to_iso3 = {
+            "USA": "USA", "United States": "USA",
+            "USSR": "RUS", "Russia": "RUS",
+            "Germany": "DEU",
+            "Britain": "GBR", "Great Britain": "GBR", "UK": "GBR",
+            "Japan": "JPN", "Italy": "ITA", "France": "FRA",
+            "China": "CHN", "Sweden": "SWE", "Israel": "ISR",
+        }
+        battles_df["iso_alpha"] = battles_df["nation"].map(nation_to_iso3)
+        battles_df = battles_df.dropna(subset=["iso_alpha"])
+
+        fig_map = px.choropleth(
+            battles_df,
+            locations="iso_alpha",
+            color="Battles",
+            color_continuous_scale="Blues",
+            hover_name="nation",
+            projection="natural earth",
+        )
+        fig_map.update_layout(
+            margin=dict(l=10, r=10, t=40, b=10),
+            coloraxis_colorbar=dict(title="Battles"),
+            title=dict(text=f"BR {selected_br_for_kd:.1f}", x=0.5)
+        )
+        fig_map.update_traces(hovertemplate="<b>%{hovertext}</b><br>Battles: %{z:,}<extra></extra>")
+        st.plotly_chart(fig_map, use_container_width=True)
+
+        st.caption("Uses the same **BR**, vehicle type, and date range as the K/D score cards. The win-rate heatmap maintains all BRs for the selected date range.")
+
+
+st.divider()
+
+####################################################################################################################################
+
+# Win Rate Heatmap
+
+####################################################################################################################################
+
+st.subheader("Nation Win Rate Heatmap")
+
 # create heatmap
 fig_wr_heatmap = px.imshow(
     agg_wr_pivot,
@@ -320,11 +469,16 @@ st.divider()
 
 st.header('k-Means Clustering')
 st.subheader('Ranked Ground Vehicle Performance Groups')
-st.write("""k-Means clustering is performed on several engagement variables like *K/D*
-            and *vehicles destroyed per battle*. The algorithm clusters vehicles into one
-            of three groups: **high performers**, **moderate performers**, and **low performers**.
-            After clustering, an interactive scatterplot is generated displaying each cluster of vehicles for the variables
-            K/D and Win Rate. Linear regression is performed, and the full clustering results can be downloaded as a CSV file.""")
+
+with st.popover("ℹ About K-Means Clustering"):
+    st.markdown("""
+                k-Means clustering is performed on several engagement variables like *K/D*
+                and *vehicles destroyed per battle*. The algorithm identifies and clusters vehicles into one
+                of three performance groups: 
+                1) **high performers**
+                2) **moderate performers**
+                3) **low performers**
+    """)
 
 # scatter plot function
 def plot_scatter_plot(df, x_metric, y_metric, color_metric):
@@ -430,12 +584,8 @@ if not selected_br_data.empty:
 
     st.divider()
 
-    st.header("Linear Regression Applied to K-Means Cluster Results")
-    st.write(f"Dependent variable (y) = Win Rate")
-    st.write(f"Independent variable (x) = K/D")
+    st.header(f"K/D and Win Rate for BR {selected_br} Clusters with Regression Line")
 
-    st.write('')
-    st.write(f'**Scatter Plot of K/D vs Win Rate Colored by Performance Cluster**')
     # make scatter plots of vehicles
     scatter_fig = plot_scatter_plot(
         clustering_results,
@@ -451,54 +601,32 @@ else:
 # regression info
 trendline_results = px.get_trendline_results(scatter_fig)
 if not trendline_results.empty:
-    # model_summary = trendline_results.iloc[0]["px_fit_results"].summary()
     px_fit_results = trendline_results.iloc[0]["px_fit_results"]
 
-    # regression summary
-    st.subheader(f"Linear Regression Summary for BR {selected_br}")
+    st.subheader("Linear Regression")
+    st.caption(f"BR **{selected_br}** · Trendline from scatter above")
 
-    # get results
-    r_squared = px_fit_results.rsquared
-    adjusted_r_squared = px_fit_results.rsquared_adj
-    coefficients = px_fit_results.params
-    p_values = px_fit_results.pvalues
-    f_statistic = px_fit_results.fvalue
-    f_pvalue = px_fit_results.f_pvalue
+    # Pull core stats
+    r2 = float(px_fit_results.rsquared)
+    slope = float(np.asarray(px_fit_results.params)[1])  # assuming const + 1 predictor
+    pval_slope = float(np.asarray(px_fit_results.pvalues)[1])
 
-    # create metrics
-    lr_a, lr_b, lr_c = st.columns(3)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("R²", f"{r2:.3f}")
+    with col2:
+        st.metric("Slope", f"{slope:.3f}")
+    with col3:
+        st.metric("Slope p-value", f"{pval_slope:.3f}")
 
-    with lr_a:
-        st.metric('R2', value = round(r_squared, 2))
-        st.metric('Adjusted R2', value = round(adjusted_r_squared, 2))
+    with st.popover("💡 How to read this"):
+        st.markdown("""
+        - **R²**: % of variation explained by K/D for this BR.
+        - **Slope**: change in outcome per 1 unit increase in K/D.
+        - **p-value**: probability the slope is due to chance.
+        """)
 
-    with lr_b:
-
-        st.metric('F-statistic', value = round(f_statistic, 3))
-        st.metric('F-stat. p-value', value = round(f_pvalue, 3))
-
-    with lr_c:
-        # Convert numpy array to dataframe
-        coefficients = np.array(px_fit_results.params)
-        p_values = np.array(px_fit_results.pvalues)  
-        
-        # round coefficients and p-values
-        coefficients_rounded = np.round(coefficients, 3)
-        p_values_rounded = np.round(p_values, 3)
-
-        # make dataframe
-        coefficients_df = pd.DataFrame({
-            "Variable": px_fit_results.model.exog_names,  
-            "Coefficient": coefficients_rounded,          
-            "P-value": p_values_rounded                   
-        })
-
-        # rename X1 with K/D
-        coefficients_df['Variable'] = coefficients_df['Variable'].replace('x1', 'K/D')
-
-        # table with coefficients and p-values
-        st.markdown("**Regression Coefficients and P-values**")
-        st.table(coefficients_df)
+st.caption("Points represent vehicles and colors indicate performance clusters.")
 
 st.divider()
 
@@ -510,14 +638,23 @@ st.divider()
 ####################################################################################################################
 
 st.header("Bayesian A/B Testing")
-st.subheader("Calculate the Probability that One Nation (A) Has a Better Win Rate than Another Nation (B)")
-st.write("""This tool tests the win rates between two nations at a specified BR range using Bayesian statistical methods. 
-            *Monte Carlo* simulation is ran on historical performance data combined with non-informative priors
-            to calculate the *probability* that the first selected nation's win rate is **better**
-            than the second nation's win rate. Additionally, the distribution of differences between the win rates are plotted along with 
-            a *95% credibility interval*. 
-            """)
-st.write("**Please select two nations to run a Bayesian statistical analysis on *win rates***")
+st.subheader("Probability that One Nation (A) Has a Better Win Rate than Another Nation (B)")
+
+with st.popover("ℹ About Bayesian A/B Testing"):
+    st.markdown("""
+    This analysis uses a **Bayesian approach** with non-informative priors and Monte Carlo
+    simulation to estimate the probability that one nation outperforms the other.
+
+    **The Results:**
+    - **Posterior distributions** for each nation's win rate
+    - **Lift distribution** = First nation (A) minus second nation (B) win rates
+    - **Probability Test > Control** = proportion of simulated draws where lift > 0
+    - **95% Credible Interval** = range where the true lift or difference lies with 95% probability
+
+    Bayesian probabilities tell you *how likely* one nation has a better win rate.
+    """)
+
+st.write("**Select two nations and a BR to run a Bayesian analysis on *win rates***")
 
 # function to run Bayesian testing on numeric or continuous data
 # I originally developed this for test and control groups for A/B experiments and I've retained some of these names for variables
@@ -542,50 +679,36 @@ def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, n
     # Monte Carlo sampling -- use 10,000 simulations
     test_samples = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test, size=n_simulations)
     control_samples = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control, size=n_simulations)
-    
-    # experimental - progress bar -- might look cool
-    for i in range(n_simulations):
-        test_samples[i] = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test)
-        control_samples[i] = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control)
-        
-        # update every 100 iteration
-        if i % 100 == 0:
-            progress_bar.progress(int(((i + 1) / n_simulations) * 100))
-        
-        # this could be optional -- a delay
-        # time.sleep(0.005)  # this was slowing it down
 
-    # probability that vehicle one beats vehicle two
-    prob_vehicle_one_beats_vehicle_two = round(np.mean(test_samples > control_samples), 2) * 100
-    
-    # credible interval for the difference - using 95% credibile interval
+    # summaries
+    prob_vehicle_one_beats_vehicle_two = 100.0 * float(np.mean(test_samples > control_samples))
     diff_samples = test_samples - control_samples
     credible_interval = np.percentile(diff_samples, [2.5, 97.5])
+    median_lift = float(np.median(diff_samples))
 
-    # summary
     st.subheader("Bayesian A/B Test Summary")
     
-    bayes_col1, bayes_col2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
 
-    with bayes_col1:
-        
-        delta_for_metric = '+' if prob_vehicle_one_beats_vehicle_two > 50 else '-'
-        st.metric(label=f"Probability {nation_one} win rate is better than {nation_two} win rate", value=f'{round(prob_vehicle_one_beats_vehicle_two,1)}%', delta = delta_for_metric)
+    delta_for_metric = '+' if prob_vehicle_one_beats_vehicle_two > 50 else '-'
+    with c1:
+        st.metric(
+            label=f"Probability({nation_one} win rate > {nation_two})",
+            value=f"{prob_vehicle_one_beats_vehicle_two:.1f}%",
+            delta=delta_for_metric
+        )
 
-        credibility_column = st.columns(1)[0]
-        with credibility_column:
-            # credibility interval
-            # st.write(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
-            st.warning(f"95% Credibility Interval for difference: [{round(credible_interval[0],1)}, {round(credible_interval[1],1)}]")
+    lift_delta = f"{median_lift:+.1f}%"
+    with c2:
+        st.metric("Most Likely Lift", f"{median_lift:.1f}%", delta=lift_delta)
 
-        lift_column = st.columns(1)[0]
-        with lift_column:
-        # most likely lift = median
-        #st.write(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
-            st.warning(f"Most likely lift or difference between {nation_one} and {nation_two} = {round(np.median(diff_samples), 1)}%")
+    with c3:
+        st.metric("95% Credible Interval", f"{credible_interval[0]:.1f} to {credible_interval[1]:.1f}")
 
-    with bayes_col2:
-        st.write("") # used to create space
+    st.caption(
+    f"Lift = {nation_one} − {nation_two} (difference in win rate). "
+    "Interval is 95% credible range."
+    )   
     
     return test_samples, control_samples, diff_samples, credible_interval
 
@@ -721,9 +844,6 @@ if nation_one and nation_two:
         # filter based on nations select
         nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['RB Win Rate']
         nation_two_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]['RB Win Rate']
-
-        # Experimental - create progress bar
-        progress_bar = st.progress(0)
 
         # Go Bayesian
         test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(
