@@ -13,22 +13,27 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-title_col, space_col, logo_col = st.columns([4,1,1])
+logo_col, space_col, title_col = st.columns([2,1,7])
+
+with logo_col:
+    st.image("war_thunder_stats_logo_hd.png",
+              width=150,
+              )
 
 with title_col:
-    st.write("""
-            # War Thunder Data Science :boom:
-            **Get Insights Using Player Stats, Bayesian Analyses, and k-Means Clustering**
-            """)
+    st.markdown("""
+    # War Thunder Data Science :boom:
+    **Uncover the Best Performing Nations & Vehicles** with  
+    *Bayesian A/B Testing*, *Clustering*, and *Machine Learning*  
+    applied to **real player stats**
+    """)
     # st.write('Developed by **A.C. Sanders**')
 
 with space_col:
     st.empty() # used to add padding for logo
 
-with logo_col:
-    st.image("war_thunder_stats_logo_hd.png",
-              width=120,
-              )
+st.divider()
+
 
 # header for the section that generates line charts for vehicle performance over time
 st.header("Vehicle Trends")
@@ -395,9 +400,17 @@ else:
             battles_df,
             locations="iso_alpha",
             color="Battles",
-            color_continuous_scale="Blues",
+            color_continuous_scale="YlOrRd",
+            # color_continuous_scale = "RdBu",
             hover_name="nation",
             projection="natural earth",
+            # projection = "robinson"
+        )
+        fig_map.update_geos(
+            showcountries=True, countrycolor="black",
+            showcoastlines=True, coastlinecolor="gray",
+            showland=True, landcolor="rgb(255, 250, 240)",
+            showocean=True, oceancolor="rgb(235, 255, 255)"
         )
         fig_map.update_layout(
             margin=dict(l=10, r=10, t=40, b=10),
@@ -441,11 +454,6 @@ fig_wr_heatmap.update_traces(
 fig_wr_heatmap.update_layout(
     template='plotly',
     autosize = True, # attempt to make this look better on phones
-    # dragmode = 'pan',
-    # xaxis=dict(fixedrange=False),  # horiz zoom
-    # yaxis=dict(fixedrange=False),  # vert zoom
-    # width=700,   
-    # height=500,
     margin=dict(l=10, r=10, t=30, b=10),  # attempt to adjust margin -- to make visually better on phones
     font=dict(size=8), # make font small
     coloraxis_colorbar=dict(
@@ -642,228 +650,234 @@ st.subheader("Probability that One Nation (A) Has a Better Win Rate than Another
 
 with st.popover("ℹ About Bayesian A/B Testing"):
     st.markdown("""
-    This analysis uses a **Bayesian approach** with non-informative priors and Monte Carlo
-    simulation to estimate the probability that one nation outperforms the other.
+    This analysis uses a **Bayesian approach** with weak/non-informative priors and Monte Carlo
+    simulation to estimate the probability that one nation outperforms another.
 
-    **The Results:**
-    - **Posterior distributions** for each nation's win rate
-    - **Lift distribution** = First nation (A) minus second nation (B) win rates
-    - **Probability Test > Control** = proportion of simulated draws where lift > 0
-    - **95% Credible Interval** = range where the true lift or difference lies with 95% probability
-
-    Bayesian probabilities tell you *how likely* one nation has a better win rate.
+    **Outputs shown:**
+    - Posterior distributions for each nation's mean win rate
+    - Distribution of the difference (A − B)
+    - Probability(A > B) from the posterior draws
+    - 95% credible interval for the difference
     """)
 
-st.write("**Select two nations and a BR to run a Bayesian analysis on *win rates***")
+st.write("**Select two nations and a BR to run a Bayesian analysis on _win rates_ (0–100 scale).**")
 
-# function to run Bayesian testing on numeric or continuous data
-# I originally developed this for test and control groups for A/B experiments and I've retained some of these names for variables
-def bayesian_ab_test_numeric(nation_one_series, nation_two_series, nation_one, nation_two, n_simulations=5000):
-    # calculate sample statistics - we need these for posteriors
-    test_mean, test_std = np.mean(nation_one_series), np.std(nation_one_series, ddof=1)
-    control_mean, control_std = np.mean(nation_two_series), np.std(nation_two_series, ddof=1)
-    test_n, control_n = len(nation_one_series), len(nation_two_series)
-    
-    # priors - set these to be non-informmative gaussian priors
-    mu0, s0, n0 = 0, 1, 0
-    
-    # posterior parameters and precision needed for Monte Carlo simulation - non-informative priors lets the data speak for itself
-    inv_vars_test = (n0 / s0**2, test_n / test_std**2)
-    posterior_mean_test = np.average((mu0, test_mean), weights=inv_vars_test)
-    posterior_std_test = 1 / np.sqrt(np.sum(inv_vars_test))
-    
-    inv_vars_control = (n0 / s0**2, control_n / control_std**2)
-    posterior_mean_control = np.average((mu0, control_mean), weights=inv_vars_control)
-    posterior_std_control = 1 / np.sqrt(np.sum(inv_vars_control))
-    
-    # Monte Carlo sampling -- use 10,000 simulations
-    test_samples = norm.rvs(loc=posterior_mean_test, scale=posterior_std_test, size=n_simulations)
-    control_samples = norm.rvs(loc=posterior_mean_control, scale=posterior_std_control, size=n_simulations)
+# ---------- Bayesian function ----------
+from scipy.stats import t as student_t
 
-    # summaries
-    prob_vehicle_one_beats_vehicle_two = 100.0 * float(np.mean(test_samples > control_samples))
+def bayesian_ab_test_numeric(nation_one_series, nation_two_series, n_simulations=5000):
+    """
+    Bayesian posterior for the mean of each group with unknown variance.
+    Prior ~ Jeffreys (non-informative). Posterior of mean is Student-t with:
+      df = n - 1, location = x̄, scale = s / sqrt(n)
+    Returns posterior draws for each mean and the difference.
+    """
+    def posterior_mean_draws(x):
+        x = np.asarray(pd.Series(x).dropna(), dtype=float)
+        n = x.size
+        if n == 0:
+            return np.array([])
+        if n == 1:
+            # With one observation, sample around the single point with a tiny scale to avoid degeneracy.
+            return np.full(n_simulations, x[0], dtype=float)
+        xbar = float(np.mean(x))
+        s = float(np.std(x, ddof=1))
+        # Guard against zero or tiny variance
+        eps = 1e-8
+        scale = max(s, eps) / np.sqrt(n)
+        # Draw from Student-t(df=n-1) scaled and shifted
+        draws = student_t.rvs(df=n-1, size=n_simulations) * scale + xbar
+        return draws
+
+    test_samples    = posterior_mean_draws(nation_one_series)
+    control_samples = posterior_mean_draws(nation_two_series)
+
+    #  either side is empty, return empties
+    if test_samples.size == 0 or control_samples.size == 0:
+        return test_samples, control_samples, np.array([]), np.array([np.nan, np.nan])
+
     diff_samples = test_samples - control_samples
     credible_interval = np.percentile(diff_samples, [2.5, 97.5])
-    median_lift = float(np.median(diff_samples))
-
-    st.subheader("Bayesian A/B Test Summary")
-    
-    c1, c2, c3 = st.columns(3)
-
-    delta_for_metric = '+' if prob_vehicle_one_beats_vehicle_two > 50 else '-'
-    with c1:
-        st.metric(
-            label=f"Probability({nation_one} win rate > {nation_two})",
-            value=f"{prob_vehicle_one_beats_vehicle_two:.1f}%",
-            delta=delta_for_metric
-        )
-
-    lift_delta = f"{median_lift:+.1f}%"
-    with c2:
-        st.metric("Most Likely Lift", f"{median_lift:.1f}%", delta=lift_delta)
-
-    with c3:
-        st.metric("95% Credible Interval", f"{credible_interval[0]:.1f} to {credible_interval[1]:.1f}")
-
-    st.caption(
-    f"Lift = {nation_one} − {nation_two} (difference in win rate). "
-    "Interval is 95% credible range."
-    )   
-    
     return test_samples, control_samples, diff_samples, credible_interval
 
 
-# plotting function for posterior distributions
-def create_posterior_plots(test_samples, control_samples, vehicle_one_name, vehicle_two_name, test_mean, control_mean):
-    # make histograms or distplots for distributions of posterior samples
-    fig_a = ff.create_distplot([test_samples, control_samples], 
-                               group_labels=[vehicle_one_name, vehicle_two_name], 
-                               )
-    fig_a.update_traces(nbinsx = 100, autobinx = True, selector = {'type':'histogram'})
-    fig_a.add_vline(x=test_samples.mean(), line_width = 3, line_dash='dash', line_color= 'hotpink', annotation_text = f'mean <br> {round(test_mean,1)}', annotation_position = 'bottom')
-    fig_a.add_vline(x=control_samples.mean(), line_width = 3, line_dash='dash', line_color= 'purple', annotation_text = f'mean <br> {round(control_mean,1)}', annotation_position = 'bottom')
-    
-    # updates to help this look better on phones
-    fig_a.update_layout(
-        autosize=True, 
-        height=700,
-        # title=dict(font=dict(size=16)),
+# ---------- plot functions ----------
+def create_posterior_plots(test_samples, control_samples, label_one, label_two):
+    fig = ff.create_distplot(
+        [test_samples, control_samples],
+        group_labels=[label_one, label_two],
+        show_rug=False
+    )
+    fig.update_traces(nbinsx=100, autobinx=True, selector={'type': 'histogram'})
+    # verticals at posterior means
+    fig.add_vline(x=float(np.mean(test_samples)),  line_width=3, line_dash='dash', line_color='hotpink',
+                  annotation_text=f"mean<br>{np.mean(test_samples):.1f}",  annotation_position='bottom')
+    fig.add_vline(x=float(np.mean(control_samples)), line_width=3, line_dash='dash', line_color='purple',
+                  annotation_text=f"mean<br>{np.mean(control_samples):.1f}", annotation_position='bottom')
+    fig.update_layout(
+        autosize=True, height=700,
         xaxis_title=dict(font=dict(size=12)),
         yaxis_title=dict(font=dict(size=12)),
-        margin=dict(l=10, r=10, t=40, b=30), 
-        font=dict(size=10), 
-        # dragmode="pan",  # panning - should help on mobile
-        legend=dict(orientation='h',
-                    yanchor='top',
-                    y=-0.1,
-                    xanchor='center',
-                    x=0.5 
-                    )
-    )
-    
-    # show
-    st.plotly_chart(fig_a, use_container_width=True)
-    return fig_a
-
-# plotting function for difference distribution - 
-def create_difference_plot(diff_samples, credible_interval, vehicle_one_name, vehicle_two_name):
-    # round credible interval and median to 1 decimal
-    credible_interval_rounded = [round(val, 1) for val in credible_interval]
-    diff_samples_median = round(np.median(diff_samples), 1)
-
-    # make plot
-    fig2b = ff.create_distplot([diff_samples], 
-                               group_labels=[f"{vehicle_one_name} - {vehicle_two_name}"], 
-                               colors = ['aquamarine'],
-    )
-
-    fig2b.update_traces(nbinsx = 100, autobinx=True, selector = {'type':'histogram'})
-
-    # vertical lines for credibility interval, 0 difference, and median (the median is the most likely lift)
-    fig2b.add_vline(x=credible_interval_rounded[0], line_width=3, line_dash='dash', line_color='red', 
-                    annotation_text=f'95% Lower Bound <br>{credible_interval_rounded[0]}', annotation_position='top')
-    fig2b.add_vline(x=credible_interval_rounded[1], line_width=3, line_dash='dash', line_color='red', 
-                    annotation_text=f'95% Upper Bound <br>{credible_interval_rounded[1]}', annotation_position='top')
-    fig2b.add_vline(x=diff_samples_median, line_width=3, line_color='dodgerblue', 
-                    annotation_text=f'Median <br>{diff_samples_median}', annotation_position='bottom')
-    fig2b.add_vline(x=0, line_width=3, line_dash='dot', line_color='orange', 
-                    annotation_text='0', annotation_position='bottom')
-
-    # layout
-    fig2b.update_layout(
-        height=700,
-        autosize=True,
-        # title=dict(font=dict(size=16)), 
-        xaxis_title=dict(font=dict(size=12)),
-        yaxis_title=dict(font=dict(size=12)),
-        margin=dict(l=10, r=10, t=40, b=30), 
+        margin=dict(l=10, r=10, t=40, b=30),
         font=dict(size=10),
-        # dragmode="pan",
-        legend=dict(orientation='h',
-                    yanchor='top',
-                    y=-0.1,
-                    xanchor='center',
-                    x=0.5 
-                    )
+        legend=dict(orientation='h', yanchor='top', y=-0.1, xanchor='center', x=0.5)
     )
+    return fig
 
-    # show
-    st.plotly_chart(fig2b, use_container_width=True)
-    return fig2b
+def create_difference_plot(diff_samples, credible_interval, label_one, label_two):
+    ci_low, ci_high = [round(val, 1) for val in credible_interval]
+    diff_med = round(float(np.median(diff_samples)), 1)
+    fig = ff.create_distplot(
+        [diff_samples],
+        group_labels=[f"{label_one} - {label_two}"],
+        colors=['aquamarine'],
+        show_rug=False
+    )
+    fig.update_traces(nbinsx=100, autobinx=True, selector={'type': 'histogram'})
+    fig.add_vline(x=ci_low,  line_width=3, line_dash='dash', line_color='red',
+                  annotation_text=f'95% Lower<br>{ci_low}',  annotation_position='top')
+    fig.add_vline(x=ci_high, line_width=3, line_dash='dash', line_color='red',
+                  annotation_text=f'95% Upper<br>{ci_high}', annotation_position='top')
+    fig.add_vline(x=diff_med, line_width=3,                 line_color='dodgerblue',
+                  annotation_text=f'Median<br>{diff_med}',   annotation_position='bottom')
+    fig.add_vline(x=0,       line_width=3, line_dash='dot', line_color='orange',
+                  annotation_text='0',                        annotation_position='bottom')
+    fig.update_layout(
+        autosize=True, height=700,
+        xaxis_title=dict(font=dict(size=12)),
+        yaxis_title=dict(font=dict(size=12)),
+        margin=dict(l=10, r=10, t=40, b=30),
+        font=dict(size=10),
+        legend=dict(orientation='h', yanchor='top', y=-0.1, xanchor='center', x=0.5)
+    )
+    return fig
 
+################################################################
+# ------ my older version using normal dist
 
-# User inputs, filtering, and running the Bayesian test #
+def _plugin_normal_draws(x, n_simulations=5000, rng=None):
+    x = np.asarray(pd.Series(x).dropna(), dtype=float)
+    n = x.size
+    if n == 0: return np.array([])
+    if n == 1: return np.full(n_simulations, x[0])
+    xbar = float(np.mean(x))
+    s = float(np.std(x, ddof=1))
+    scale = max(s, 1e-8) / np.sqrt(n)
+    return norm.rvs(loc=xbar, scale=scale, size=n_simulations, random_state=rng)
 
-# create copy
+################################################################################
+
+# --- filtering & controls (auto-run = defaults BR=5, USSR vs Germany) ---
 df_bayes = data.copy()
+df_bayes = df_bayes.loc[
+    (df_bayes['cls'] == 'Ground_vehicles') & (df_bayes['rb_win_rate'].notna())
+].copy()
 
-# make df for our bayesian data
-df_bayes = df_bayes.rename(columns = {'rb_ground_frags_per_death': 'RB Ground K/D',
-                                    'rb_ground_frags_per_battle': 'RB Ground Kills per Battle',
-                                    'rb_win_rate': 'RB Win Rate',
-                                    'rb_battles': 'RB Battles',  
-                                    'rb_air_frags_per_death': 'RB Air K/D', 
-                                    'rb_air_frags_per_battle':'RB Air Kills per Battle'})
-
-# ground vehicles only and remove nulls in 'rb_win_rate'
-df_bayes_filtered = df_bayes[(df_bayes['cls'] == 'Ground_vehicles') & df_bayes['RB Win Rate'].notna()]
-
-# use datetime and filter for the last 60 days
-df_bayes_filtered['date'] = pd.to_datetime(df_bayes_filtered['date'], errors='coerce')
+df_bayes['date'] = pd.to_datetime(df_bayes['date'], errors='coerce')
 sixty_days_ago = datetime.now() - timedelta(days=60)
-df_bayes_filtered = df_bayes_filtered[df_bayes_filtered['date'] >= sixty_days_ago]
+df_bayes = df_bayes.loc[df_bayes['date'] >= sixty_days_ago].copy()
 
-# make our 'br_range' variable for broad BR categories
-df_bayes_filtered['br_range'] = np.floor(df_bayes_filtered['rb_br']).astype(int)
+df_bayes = df_bayes.rename(columns={
+    'rb_ground_frags_per_death':  'RB Ground K/D',
+    'rb_ground_frags_per_battle': 'RB Ground Kills per Battle',
+    'rb_win_rate':                'RB Win Rate',
+    'rb_battles':                 'RB Battles',
+    'rb_air_frags_per_death':     'RB Air K/D',
+    'rb_air_frags_per_battle':    'RB Air Kills per Battle'
+})
 
-# input for BR range
-selected_br_range = st.selectbox("Select BR Range:", sorted(df_bayes_filtered['br_range'].unique()))
-df_bayes_filtered = df_bayes_filtered[df_bayes_filtered['br_range'] == selected_br_range]
+df_bayes['br_range'] = np.floor(df_bayes['rb_br']).astype('Int64')
 
-# columns for nation selection
+br_options = sorted([int(b) for b in df_bayes['br_range'].dropna().unique()])
+default_br = 5 if 5 in br_options else (br_options[0] if br_options else 0)
+
+selected_br_range = st.selectbox(
+    "Select BR Range:",
+    br_options,
+    index=br_options.index(default_br) if default_br in br_options else 0
+)
+
+df_bayes_br = df_bayes.loc[df_bayes['br_range'] == selected_br_range].copy()
+nation_options = sorted(df_bayes_br['nation'].dropna().unique().tolist())
+
+def pick_default(target, opts, alt=None):
+    if target in opts: return target
+    if alt and alt in opts and alt != target: return alt
+    return opts[0] if opts else None
+
+default_n1 = pick_default('USSR',    nation_options)
+default_n2 = pick_default('Germany', nation_options, alt='USSR')
+
 col1, col2 = st.columns(2)
-
-# first nation
 with col1:
     st.subheader("Nation One Selection")
-    nation_one = st.selectbox("Select Nation for First Group:", sorted(df_bayes_filtered['nation'].unique()))
- 
-# Second
+    nation_one = st.selectbox(
+        "Select Nation for First Group:", nation_options,
+        index=(nation_options.index(default_n1) if default_n1 in nation_options else 0),
+        key="nation_one"
+    )
 with col2:
     st.subheader("Nation Two Selection")
-    nation_two = st.selectbox("Select Nation for Second Group:", sorted(df_bayes_filtered['nation'].unique()), key="nation_two")
+    def_idx_n2 = (nation_options.index(default_n2) if (default_n2 in nation_options)
+                  else (nation_options.index(default_n1) + 1 if len(nation_options) > 1 else 0))
+    def_idx_n2 = min(def_idx_n2, max(len(nation_options) - 1, 0))
+    nation_two = st.selectbox(
+        "Select Nation for Second Group:", nation_options,
+        index=def_idx_n2, key="nation_two"
+    )
 
-st.write(":point_down: Click the button below to run the Bayesian A/B test on win rates")
+# --- Auto / default analysis - but a user can update ---
+if not nation_options or nation_one is None or nation_two is None:
+    st.warning("Not enough data available for this BR in the last 60 days.")
+elif nation_one == nation_two:
+    st.info("Select two different nations to compare.")
+else:
+    st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
 
-# Run Bayesian A/B testing
-if nation_one and nation_two:
-    # button -- Bayesian A/B test
-    if st.button("Perform Bayesian Analysis"):
-        st.write(f"Comparing **{nation_one}** vs **{nation_two}** for BR Range: **{selected_br_range}**")
-        
-        # filter based on nations select
-        nation_one_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_one]['RB Win Rate']
-        nation_two_series = df_bayes_filtered[df_bayes_filtered['nation'] == nation_two]['RB Win Rate']
+    s1 = df_bayes_br.loc[df_bayes_br['nation'] == nation_one, 'RB Win Rate']
+    s2 = df_bayes_br.loc[df_bayes_br['nation'] == nation_two, 'RB Win Rate']
 
-        # Go Bayesian
-        test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(
-            nation_one_series, nation_two_series, nation_one, nation_two
-        )
-        
-        # means for posteriors
-        test_mean = np.mean(test_samples)
-        control_mean = np.mean(control_samples)
+    n1, n2 = len(s1), len(s2)
+    if min(n1, n2) < 20:
+        st.warning(f"Small sample sizes (n={n1} vs n={n2}). Results may be unstable.")
 
-        # Posterior distributions
-        st.subheader(f"Posterior Distributions of Win Rates for {nation_one} and {nation_two}")
-        fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two, test_mean, control_mean)
+    test_samples, control_samples, diff_samples, credible_interval = bayesian_ab_test_numeric(s1, s2)
 
-        # Difference distribution plot
-        st.subheader("Distribution of Win Rate Differences from 5,000 Simulations")
-        st.markdown(f"Difference calculated as **{nation_one}** win rate - **{nation_two}** win rate")
-        fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
+    if diff_samples.size == 0:
+        st.warning("Insufficient data after filtering.")
+        st.stop()
 
-        st.success(f"Bayesian analysis complete.", icon="✅")
+    prob_a_better = float((diff_samples > 0).mean())
+    median_diff   = float(np.median(diff_samples))
+    lwr, upr      = map(float, credible_interval)
+
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("Probability(A > B)", f"{prob_a_better:.0%}")
+    kpi2.metric("Difference in win rate", f"{median_diff:.2f}")
+    kpi3.metric("95% Credible Interval", f"{lwr:.2f} to {upr:.2f}")
+
+    st.subheader(f"Posterior Distributions of Win Rates for {nation_one} and {nation_two}")
+    fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two)
+    st.plotly_chart(fig_a, use_container_width=True)
+
+    # sanity check with my old version
+    # with st.expander("Debug: compare t vs Normal (optional)"):
+    #    tA, tB, tDiff, _ = bayesian_ab_test_numeric(s1, s2, n_simulations=5000)
+    #    nA = _plugin_normal_draws(s1, 5000); nB = _plugin_normal_draws(s2, 5000)
+    #    nDiff = nA - nB
+    #    st.write({
+    #        "P(A>B) t": float((tDiff>0).mean()),
+    #        "P(A>B) normal": float((nDiff>0).mean())
+    #    })
+
+    st.subheader("Distribution of Win Rate Differences from 5,000 Simulations")
+    st.markdown(
+        f"Difference = **{nation_one}** win rate − **{nation_two}** win rate"
+    )
+    fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
+    st.plotly_chart(fig2b, use_container_width=True)
+
+    st.success("Bayesian analysis complete.", icon="✅")
 
 st.divider()
 
