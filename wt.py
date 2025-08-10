@@ -588,11 +588,14 @@ if not selected_br_data.empty:
     
     # display results
     st.dataframe(clustering_results)
+
+    st.caption(f"k-means algorithm segmented BR **{selected_br}** vehicles into 3 performance cantegories: low, moderate, and high performers")
+
     st.success(f"Clustering completed for BR {selected_br}.", icon="✅")
 
-    st.divider()
-
     st.header(f"K/D and Win Rate for BR {selected_br} Clusters with Regression Line")
+
+    st.caption("Points represent vehicles and colors indicate performance clusters")
 
     # make scatter plots of vehicles
     scatter_fig = plot_scatter_plot(
@@ -634,10 +637,7 @@ if not trendline_results.empty:
         - **p-value**: probability the slope is due to chance.
         """)
 
-st.caption("Points represent vehicles and colors indicate performance clusters.")
-
 st.divider()
-
 
 ####################################################################################################################
 
@@ -660,7 +660,7 @@ with st.popover("ℹ About Bayesian A/B Testing"):
     - 95% credible interval for the difference
     """)
 
-st.write("**Select two nations and a BR to run a Bayesian analysis on _win rates_ (0–100 scale).**")
+st.write("**Select two nations and a BR to run a Bayesian analysis on _win rates**")
 
 # ---------- Bayesian function ----------
 from scipy.stats import t as student_t
