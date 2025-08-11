@@ -806,9 +806,9 @@ if not trendline_results.empty:
 
     with st.popover("💡 How to read this"):
         st.markdown("""
-        - **R²**: % of variation explained by K/D for this BR.
-        - **Slope**: change in outcome per 1 unit increase in K/D.
-        - **p-value**: probability the slope is due to chance.
+        - **R²**: Proportion of the variation in the outcome that can be explained by K/D for this BR
+        - **Slope**: Expected change in the outcome for each 1-unit increase in K/D
+        - **p-value**: Probability of seeing a slope at least this extreme if K/D had no real effect
         """)
 
 st.divider()
@@ -825,12 +825,12 @@ st.subheader("Probability that One Nation (A) Has a Better Win Rate than Another
 with st.popover("ℹ About Bayesian A/B Testing"):
     st.markdown("""
     This analysis uses a **Bayesian approach** with weak/non-informative priors and Monte Carlo
-    simulation to estimate the probability that one nation outperforms another.
+    simulation to estimate the probability that one nation (A) outperforms another nation (B).
 
     **Outputs shown:**
     - Posterior distributions for each nation's mean win rate
-    - Distribution of the difference (A − B)
-    - Probability(A > B) from the posterior draws
+    - Distribution of the difference (Nation A − Nation B)
+    - Probability(Nation A > Nation B) from the posterior draws
     - 95% credible interval for the difference
     """)
 
@@ -1034,7 +1034,7 @@ else:
     lwr, upr      = map(float, credible_interval)
 
     kpi1, kpi2, kpi3 = st.columns(3)
-    kpi1.metric("Probability(A > B)", f"{prob_a_better:.0%}")
+    kpi1.metric(f"Probability({nation_one} > {nation_two})", f"{prob_a_better:.0%}")
     kpi2.metric("Difference in win rate", f"{median_diff:.2f}")
     kpi3.metric("95% Credible Interval", f"{lwr:.2f} to {upr:.2f}")
 
