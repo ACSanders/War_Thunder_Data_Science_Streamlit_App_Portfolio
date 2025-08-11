@@ -230,12 +230,12 @@ if final_filtered_df.shape[0] > 0:
         ]
     })
 
-    # Show lines chart
-    st.plotly_chart(fig, use_container_width=True) 
+    # Show lines chart --- don't use this duplicates
+    # st.plotly_chart(fig, use_container_width=True) 
 
-    st.write(f'**Distribution of {selected_metric} by Vehicle**')
+    # st.write(f'**Distribution of {selected_metric} by Vehicle**')
     # Show boxplot
-    st.plotly_chart(fig_box, use_container_width=True)
+    # st.plotly_chart(fig_box, use_container_width=True)
 
 else:
     st.write("No data available") # display this if selections and dataframe lack data
