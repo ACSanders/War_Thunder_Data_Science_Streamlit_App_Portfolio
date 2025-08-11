@@ -228,8 +228,11 @@ def get_xgb_df(df: pd.DataFrame) -> pd.DataFrame:
 
     df['date'] = pd.to_datetime(df['date'], format="%m/%d/%Y", errors='coerce')
 
-    # filter last 15 days
-    cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=15)
+    # find most recent date in the data
+    max_date = df['date'].max()
+
+    # filter last 15 days relative to max_date
+    cutoff = max_date - pd.Timedelta(days=15)
     df = df[df['date'] >= cutoff]
 
     # ground vehicles
@@ -315,9 +318,9 @@ else:
     )
 
     # button to force a retrain if we ever need to (busts cache by tweaking a dummy seed)
-    force_retrain = st.checkbox("Force retrain model", value=False)
-    if force_retrain:
-        best_params = {**best_params, "random_state": np.random.randint(0, 10_000)}
+    # force_retrain = st.checkbox("Force retrain model", value=False)
+    # if force_retrain:
+        # best_params = {**best_params, "random_state": np.random.randint(0, 10_000)}
 
     # train once per data/param change
     model = train_model(X_train, y_train, best_params)
@@ -336,6 +339,7 @@ else:
     # display
     # -------------------------
     st.subheader("LightGBM Model")
+    st.caption("Machine learning model trained to predict win rate")
     c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE",  f"{mae:,.2f}")
@@ -344,6 +348,7 @@ else:
     st.caption("Training is cached. It only reruns if the data window, filters, or parameters change.")
 
     st.subheader("Feature Importance")
+    st.caption("Ranking the performance metrics and vehicle characteristics that are most predictive of win rate")
     st.dataframe(importances.to_frame("importance"))
 
     importance_df = importances.reset_index()
@@ -370,7 +375,7 @@ else:
     st.plotly_chart(fig_importance, use_container_width=True)
 
     # scatter for sanity check
-    with st.expander("Predicted vs Actual (test)"):
+    with st.expander("Model Accuracy: Predicted vs Actual Win Rates"):
         import plotly.express as px
         fig = px.scatter(x=y_test, y=y_pred, labels={'x':'Actual', 'y':'Predicted'}, opacity=0.35)
         fig.add_shape(type="line",
