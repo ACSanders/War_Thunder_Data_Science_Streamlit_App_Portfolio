@@ -1,9 +1,10 @@
 streamlit
 numpy
 pandas
+lightgbm
 plotly
 scikit-learn
 scipy==1.11.4
 statsmodels==0.14.1
-matplotlib
+# matplotlib
 # kaleido

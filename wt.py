@@ -2,6 +2,9 @@ import streamlit as st
 st.set_page_config(layout="wide")
 import numpy as np
 import pandas as pd
+from lightgbm import LGBMRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
@@ -209,6 +212,147 @@ if final_filtered_df.shape[0] > 0:
 
 else:
     st.write("No data available") # display this if selections and dataframe lack data
+
+st.divider()
+
+####################################################################################################################
+
+# lightgbm model to predict win rate
+
+####################################################################################################################
+
+# data prep --- cached by input dataframe
+@st.cache_data(show_spinner=False)
+def get_xgb_df(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    # last 15 days
+    cutoff = pd.Timestamp.today() - pd.Timedelta(days=15)
+    df = df.loc[df['date'] >= cutoff]
+
+    # ground vehicles
+    df = df.loc[df['cls'] == 'Ground_vehicles']
+
+    # keep only features + target
+    cols = [
+        'rb_battles',
+        'rb_ground_frags_per_battle',
+        'rb_ground_frags_per_death',
+        'rb_br',
+        'is_premium',
+        'nation',
+        'rb_win_rate'
+    ]
+    df = df[cols].dropna()
+
+    # map booleans to 0/1
+    df = df.copy()  # avoid chained-assign warnings
+    df.loc[:, 'is_premium'] = (
+        df['is_premium'].astype(str).str.upper().map({'TRUE': 1, 'FALSE': 0}).fillna(0).astype(int)
+    )
+
+    # rename
+    df = df.rename(columns={
+        'rb_battles': 'number_battles',
+        'rb_ground_frags_per_battle': 'targets_destroyed',
+        'rb_ground_frags_per_death': 'kills_per_death',
+        'rb_br': 'br',
+        'rb_win_rate': 'win_rate'
+    })
+
+    return df
+
+# feature build --- cached
+@st.cache_data(show_spinner=False)
+def make_features(df_model: pd.DataFrame):
+    y = df_model['win_rate'].astype(float)
+
+    X = pd.get_dummies(
+        df_model.drop(columns=['win_rate']),
+        columns=['nation'],
+        drop_first=True,
+        dtype=int
+    )
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.20, random_state=12
+    )
+    return X_train, X_test, y_train, y_test, X.columns.tolist()
+
+# training --- cached as a resource so it won't retrain on every rerun
+@st.cache_resource(show_spinner=True)
+def train_model(X_train, y_train, params: dict):
+    model = LGBMRegressor(
+        **params,
+        n_jobs=-1,
+        random_state=42,
+        verbose=-1
+    )
+    model.fit(X_train, y_train)
+    return model
+
+# -------------------------
+# pipeline
+# -------------------------
+xgb_df = get_xgb_df(df_copy)
+
+if xgb_df.empty:
+    st.info("No data available (last 15 days • Ground_vehicles) after cleaning.")
+else:
+    X_train, X_test, y_train, y_test, feature_names = make_features(xgb_df)
+
+    # best params from your notebook -- previous training I did using grid search
+    best_params = dict(
+        colsample_bytree=1.0,
+        learning_rate=0.05,
+        max_depth=-1,
+        min_child_samples=10,
+        n_estimators=900,
+        num_leaves=63,
+        subsample=0.8
+    )
+
+    # button to force a retrain if we ever need to (busts cache by tweaking a dummy seed)
+    force_retrain = st.checkbox("Force retrain model", value=False)
+    if force_retrain:
+        best_params = {**best_params, "random_state": np.random.randint(0, 10_000)}
+
+    # train once per data/param change
+    model = train_model(X_train, y_train, best_params)
+
+    # evaluate --- doesn't use retrain
+    y_pred = model.predict(X_test).astype('float32')
+    rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
+    mae  = float(mean_absolute_error(y_test, y_pred))
+    r2   = float(r2_score(y_test, y_pred))
+
+    # feature importances
+    importances = pd.Series(model.feature_importances_, index=feature_names)\
+                    .sort_values(ascending=False)
+
+    # -------------------------
+    # display
+    # -------------------------
+    st.subheader("LightGBM Model — Performance (cached)")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("RMSE", f"{rmse:,.2f}")
+    c2.metric("MAE",  f"{mae:,.2f}")
+    c3.metric("R²",   f"{r2:,.3f}")
+
+    st.caption("Training is cached. It only reruns if the data window, filters, or parameters change.")
+
+    st.subheader("Feature Importance")
+    st.dataframe(importances.to_frame("importance"))
+
+    # scatter for sanity check
+    with st.expander("Predicted vs Actual (test)"):
+        import plotly.express as px
+        fig = px.scatter(x=y_test, y=y_pred, labels={'x':'Actual', 'y':'Predicted'}, opacity=0.35)
+        fig.add_shape(type="line",
+                      x0=float(y_test.min()), y0=float(y_test.min()),
+                      x1=float(y_test.max()), y1=float(y_test.max()),
+                      line=dict(dash="dash"))
+        st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
