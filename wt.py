@@ -391,7 +391,7 @@ else:
         orientation="h",
         text="Importance",
         color="Importance",
-        color_continuous_scale="balance",
+        color_continuous_scale="portland",
         height=400
     )
 
@@ -423,40 +423,47 @@ else:
     })
 
     # partial dependency plot
-    feature_to_plot = st.selectbox("Select feature for PDP", X_train.columns)
-    # compute partial dependence (returns averaged predictions)
-    pdp_results = partial_dependence(model, X_train, [feature_to_plot], grid_resolution=50)
+   
+   # only numeric features (LightGBM expects these as you trained it)
+    num_cols = [c for c in X_train.columns if np.issubdtype(X_train[c].dtype, np.number)]
+    feature_to_plot = st.selectbox("Select feature for PDP", num_cols)
 
-    # extract x (feature values) and y (average prediction)
-    x_vals = pdp_results['values'][0]
-    y_vals = pdp_results['average'][0]
+    # compute PDP (average effect)
+    pdp = partial_dependence(
+        estimator=model,
+        X=X_train,
+        features=[feature_to_plot],
+        kind="average",
+        grid_resolution=60
+    )
 
-    # make plotly line chart
+    # sklearn compatibility: grid values key changed
+    x_vals = pd.Series((pdp.get("grid_values") or pdp.get("values"))[0])
+    y_avg  = pd.Series(pdp["average"][0])
+
+    # plotly line
     fig_pdp = px.line(
-        x=x_vals,
-        y=y_vals,
-        labels={'x': feature_to_plot, 'y': 'Predicted Win Rate'},
+        x=x_vals, y=y_avg,
+        labels={"x": feature_to_plot, "y": "Predicted RB Win Rate"},
         markers=True
     )
 
-    # style for mobile
+    # light mobile-friendly styling
     fig_pdp.update_layout(
         template="plotly",
         margin=dict(l=10, r=10, t=40, b=10),
         font=dict(size=10),
         xaxis_title=feature_to_plot,
-        yaxis_title="Predicted Win Rate"
+        yaxis_title="Predicted RB Win Rate",
     )
-
-    # prevent drag/zoom for mobile
     fig_pdp.update_xaxes(fixedrange=True)
     fig_pdp.update_yaxes(fixedrange=True)
 
     st.plotly_chart(fig_pdp, use_container_width=True, config={
         "scrollZoom": False,
         "modeBarButtonsToRemove": [
-            "zoom2d", "pan2d", "select2d", "lasso2d",
-            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+            "zoom2d","pan2d","select2d","lasso2d",
+            "zoomIn2d","zoomOut2d","autoScale2d","resetScale2d"
         ]
     })
 
