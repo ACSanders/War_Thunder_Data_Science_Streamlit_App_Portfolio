@@ -889,12 +889,16 @@ def create_posterior_plots(test_samples, control_samples, label_one, label_two):
     fig.add_vline(x=float(np.mean(control_samples)), line_width=3, line_dash='dash', line_color='purple',
                   annotation_text=f"mean<br>{np.mean(control_samples):.1f}", annotation_position='bottom')
     fig.update_layout(
-        autosize=True, height=700,
-        xaxis_title=dict(font=dict(size=12)),
-        yaxis_title=dict(font=dict(size=12)),
+        autosize=True,
         margin=dict(l=10, r=10, t=40, b=30),
         font=dict(size=10),
-        legend=dict(orientation='h', yanchor='top', y=-0.1, xanchor='center', x=0.5)
+        legend=dict(
+            orientation='h',
+            yanchor='top',
+            y=-0.1,
+            xanchor='center',
+            x=0.5
+        )
     )
     return fig
 
@@ -917,12 +921,16 @@ def create_difference_plot(diff_samples, credible_interval, label_one, label_two
     fig.add_vline(x=0,       line_width=3, line_dash='dot', line_color='orange',
                   annotation_text='0',                        annotation_position='bottom')
     fig.update_layout(
-        autosize=True, height=700,
-        xaxis_title=dict(font=dict(size=12)),
-        yaxis_title=dict(font=dict(size=12)),
+        autosize=True,
         margin=dict(l=10, r=10, t=40, b=30),
         font=dict(size=10),
-        legend=dict(orientation='h', yanchor='top', y=-0.1, xanchor='center', x=0.5)
+        legend=dict(
+            orientation='h',
+            yanchor='top',
+            y=-0.1,
+            xanchor='center',
+            x=0.5
+        )
     )
     return fig
 
