@@ -226,12 +226,11 @@ st.divider()
 def get_xgb_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # ensure my 'date' column is in datetime format
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], format="%m/%d/%Y", errors='coerce')
 
-    # last 15 days
-    cutoff = pd.Timestamp.today() - pd.Timedelta(days=15)
-    df = df.loc[df['date'] >= cutoff]
+    # filter last 15 days
+    cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=15)
+    df = df[df['date'] >= cutoff]
 
     # ground vehicles
     df = df.loc[df['cls'] == 'Ground_vehicles']
