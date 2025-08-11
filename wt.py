@@ -339,13 +339,13 @@ else:
     # display
     # -------------------------
     st.subheader("LightGBM Model")
-    st.caption("Machine learning model trained to predict win rate")
+    st.caption("Machine learning model trained to predict win rate for ground vehicles")
     c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE",  f"{mae:,.2f}")
     c3.metric("R²",   f"{r2:,.3f}")
 
-    st.caption("Training is cached. It only reruns if the data window, filters, or parameters change.")
+    # st.caption("Training is cached. It only reruns if the data window, filters, or parameters change.")
 
     st.subheader("Feature Importance")
     st.caption("Ranking the performance metrics and vehicle characteristics that are most predictive of win rate")
