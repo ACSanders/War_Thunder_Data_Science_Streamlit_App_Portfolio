@@ -174,34 +174,61 @@ if final_filtered_df.shape[0] > 0:
                                      )
     )
 
+    # lock axes so dragging doesn't mess with scrolling on phones
+    fig_box.update_xaxes(fixedrange=True)
+    fig_box.update_yaxes(fixedrange=True)
+
+    # scroll/drag tools disabled
+    st.plotly_chart(fig_box, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+        ]
+    })
+
     st.write('**Performance Over Time**')
     st.write(f'Selected metric: **{selected_metric}**')
+
     # line plot
-    fig = px.line(final_filtered_df, 
-                  x='date', 
-                  y=selected_metric, 
-                  color='name',  # separate lines for each vehicle
-                  # title=f"<b>Performance Over Time</b><br><span style='font-size:16px;'>Selected Metric: {selected_metric}</span>",
-                  labels={'date': 'Date', selected_metric: selected_metric}, 
-                  hover_data=['name', 'nation', 'rb_br'])
-    
-    fig.update_traces(line=dict(width=2), mode='lines+markers')  # markers - check line width?
+    fig = px.line(
+        final_filtered_df, 
+        x="date", 
+        y=selected_metric, 
+        color="name",
+        labels={"date": "Date", selected_metric: selected_metric},
+        hover_data=["name", "nation", "rb_br"]
+    )
+
+    fig.update_traces(line=dict(width=2), mode="lines+markers")
 
     fig.update_layout(
-        template='plotly',
-        # title=dict(font=dict(size=16), pad=dict(t=100)),
+        template="plotly",
         xaxis_title=dict(font=dict(size=12)),
         yaxis_title=dict(font=dict(size=12)),
-        margin=dict(l=10, r=10, t=40, b=10),  # margins -- should look better on phone when small
+        margin=dict(l=10, r=10, t=40, b=10),
         font=dict(size=10),
-        # dragmode='pan',  # panning
-        legend=dict(orientation='h',
-                    yanchor='top',
-                    y=-0.1,
-                    xanchor='center',
-                    x=0.5 
-                    )
-    ) 
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.1,
+            xanchor="center",
+            x=0.5
+        )
+    )
+
+    # lock axes
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
+
+    # scroll/drag tools disabled
+    st.plotly_chart(fig, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+        ]
+    })
 
     # Show lines chart
     st.plotly_chart(fig, use_container_width=True) 
@@ -362,6 +389,7 @@ else:
     importance_df = importances.reset_index()
     importance_df.columns = ["Feature", "Importance"]
 
+    # bar chart for feat importance
     fig_importance = px.bar(
         importance_df,
         x="Importance",
@@ -377,20 +405,57 @@ else:
         yaxis=dict(autorange="reversed"),  # most important at top
         template="plotly_white",
         margin=dict(l=10, r=10, t=40, b=40),
-        coloraxis_showscale=False
+        coloraxis_showscale=False,
+        font=dict(size=10)
     )
 
-    st.plotly_chart(fig_importance, use_container_width=True)
+    # better labels
+    fig_importance.update_traces(
+        texttemplate="%{text:.2f}",
+        textposition="outside",
+        cliponaxis=False
+    )
+
+    # prevent axis drag/zoom on mobile
+    fig_importance.update_xaxes(fixedrange=True)
+    fig_importance.update_yaxes(fixedrange=True)
+
+    st.plotly_chart(fig_importance, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d","pan2d","select2d","lasso2d",
+            "zoomIn2d","zoomOut2d","autoScale2d","resetScale2d"
+        ]
+    })
 
     # scatter for sanity check
     with st.expander("Model Accuracy: Predicted vs Actual Win Rates"):
-        import plotly.express as px
-        fig = px.scatter(x=y_test, y=y_pred, labels={'x':'Actual', 'y':'Predicted'}, opacity=0.35)
-        fig.add_shape(type="line",
-                      x0=float(y_test.min()), y0=float(y_test.min()),
-                      x1=float(y_test.max()), y1=float(y_test.max()),
-                      line=dict(dash="dash"))
-        st.plotly_chart(fig, use_container_width=True)
+        fig = px.scatter(
+            x=y_test,
+            y=y_pred,
+            labels={"x": "Actual", "y": "Predicted"},
+            opacity=0.35
+        )
+
+        # add 45-degree reference line
+        fig.add_shape(
+            type="line",
+            x0=float(y_test.min()), y0=float(y_test.min()),
+            x1=float(y_test.max()), y1=float(y_test.max()),
+            line=dict(dash="dash")
+        )
+
+        # lock axes for mobile
+        fig.update_xaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True)
+
+        st.plotly_chart(fig, use_container_width=True, config={
+            "scrollZoom": False,
+            "modeBarButtonsToRemove": [
+                "zoom2d", "pan2d", "select2d", "lasso2d",
+                "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+            ]
+        })
 
 st.divider()
 
@@ -566,7 +631,7 @@ else:
             .groupby("nation", as_index=False)[battles_col].sum()
             .rename(columns={battles_col: "Battles"}))
 
-        # Map game nations -> ISO-3 (USSR -> Russia)
+        # map nations -> ISO-3 (USSR -> Russia)
         nation_to_iso3 = {
             "USA": "USA", "United States": "USA",
             "USSR": "RUS", "Russia": "RUS",
@@ -583,10 +648,8 @@ else:
             locations="iso_alpha",
             color="Battles",
             color_continuous_scale="YlOrRd",
-            # color_continuous_scale = "RdBu",
             hover_name="nation",
             projection="natural earth",
-            # projection = "robinson"
         )
         fig_map.update_geos(
             showcountries=True, countrycolor="black",
@@ -597,10 +660,22 @@ else:
         fig_map.update_layout(
             margin=dict(l=10, r=10, t=40, b=10),
             coloraxis_colorbar=dict(title="Battles"),
-            title=dict(text=f"BR {selected_br_for_kd:.1f}", x=0.5)
+            title=dict(text=f"BR {selected_br_for_kd:.1f}", x=0.5),
         )
+
         fig_map.update_traces(hovertemplate="<b>%{hovertext}</b><br>Battles: %{z:,}<extra></extra>")
-        st.plotly_chart(fig_map, use_container_width=True)
+
+        st.plotly_chart(
+            fig_map,
+            use_container_width=True,
+            config={
+                "scrollZoom": False,  # blocks pinch zoom
+                "modeBarButtonsToRemove": [
+                    "zoomInGeo", "zoomOutGeo", "resetGeo",  # geo-specific buttons
+                    "zoom2d","pan2d","select2d","lasso2d","zoomIn2d","zoomOut2d","autoScale2d","resetScale2d"
+                ],
+            },
+        )
 
         st.caption("Uses the same **BR**, vehicle type, and date range as the K/D score cards. The win-rate heatmap maintains all BRs for the selected date range.")
 
@@ -622,32 +697,43 @@ fig_wr_heatmap = px.imshow(
     labels=dict(x='BR Range', y='Nation', color='RB Win Rate')
 )
 
-# let us show all x-axis ticks
+# show all x-axis ticks
 fig_wr_heatmap.update_xaxes(tickmode='linear')
 
 fig_wr_heatmap.update_traces(
-    showscale = False, # this takes up room on mobile -- experiment with removing it
-    text=agg_wr_pivot.round(1).astype(str),  # round values to 1 decimal and convert to string
-    texttemplate="%{text}",  # rounded values as text
-    textfont=dict(size=8),  # smaller - adjust font size from 10 to 8
-    hoverinfo='text'  # hover info - show the values
+    showscale=False,  # removes scale bar
+    text=agg_wr_pivot.round(1).astype(str),  # round to 1 decimal
+    texttemplate="%{text}",
+    textfont=dict(size=8),
+    hoverinfo='text'
 )
 
 fig_wr_heatmap.update_layout(
     template='plotly',
-    autosize = True, # attempt to make this look better on phones
-    margin=dict(l=10, r=10, t=30, b=10),  # attempt to adjust margin -- to make visually better on phones
-    font=dict(size=8), # make font small
+    autosize=True,
+    margin=dict(l=10, r=10, t=30, b=10),
+    font=dict(size=8),
     coloraxis_colorbar=dict(
         orientation='h', 
-        yanchor='bottom',  
-        y=-0.4, 
-        xanchor='center',  
-        x=0.5)
+        yanchor='bottom',
+        y=-0.4,
+        xanchor='center',
+        x=0.5
+    )
 )
 
-# Show heatmap
-st.plotly_chart(fig_wr_heatmap, use_container_width=True)
+# lock axes
+fig_wr_heatmap.update_xaxes(fixedrange=True)
+fig_wr_heatmap.update_yaxes(fixedrange=True)
+
+# scroll/drag disabled
+st.plotly_chart(fig_wr_heatmap, use_container_width=True, config={
+    "scrollZoom": False,
+    "modeBarButtonsToRemove": [
+        "zoom2d", "pan2d", "select2d", "lasso2d",
+        "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+    ]
+})
 
 st.divider()
 
@@ -713,11 +799,18 @@ key_metrics = ['RB Ground K/D', 'RB Ground Kills per Battle']
 # cacheing -- ml and analyses take up resources - cache helps
 @st.cache_data
 def filter_and_segment_data(df, key_metrics):
-    recent_date = datetime.now() - timedelta(days=30)
-    # filter data for last 30 days and drop rows with NaN in key metrics - including win rate
-    filtered_df = df[df['date'] >= recent_date].dropna(subset=key_metrics + ['RB Win Rate'])
-    filtered_df = filtered_df[~filtered_df['cls'].isin(['Fleet', 'Aviation'])]
-    filtered_df['br_range'] = np.floor(filtered_df['rb_br']).astype(int)
+    # most recent date
+    max_date = df["date"].max()
+    recent_cutoff = max_date - pd.Timedelta(days=30)
+
+    # filter last 30 days from max date & drop NaNs in key metrics
+    filtered_df = df.loc[df["date"] >= recent_cutoff].dropna(subset=key_metrics + ["RB Win Rate"])
+
+    # ground only
+    filtered_df = filtered_df.loc[~filtered_df["cls"].isin(["Fleet", "Aviation"])].copy()
+
+    # create broad BR category
+    filtered_df["br_range"] = np.floor(filtered_df["rb_br"]).astype(int)
     
     # group by vehicle and aggregate metrics
     aggregated_df = filtered_df.groupby('name', as_index=False).agg({
@@ -771,7 +864,7 @@ if not selected_br_data.empty:
     # display results
     st.dataframe(clustering_results)
 
-    st.caption(f"k-means algorithm segmented BR **{selected_br}** vehicles into 3 performance cantegories: low, moderate, and high performers")
+    st.caption(f"k-means algorithm segmented BR **{selected_br}** vehicles into 3 performance categories: low, moderate, and high performers")
 
     st.success(f"Clustering completed for BR {selected_br}.", icon="✅")
 
@@ -788,36 +881,39 @@ if not selected_br_data.empty:
     )
     st.plotly_chart(scatter_fig, use_container_width=True)
 
+    # regression info
+    trendline_results = px.get_trendline_results(scatter_fig)
+    if not trendline_results.empty:
+        px_fit_results = trendline_results.iloc[0]["px_fit_results"]
+
+        st.subheader("Linear Regression")
+        st.caption(f"BR **{selected_br}** · Trendline from scatter above")
+
+        # core stats
+        r2 = float(px_fit_results.rsquared)
+        slope = float(np.asarray(px_fit_results.params)[1])  # const + 1 predictor
+        pval_slope = float(np.asarray(px_fit_results.pvalues)[1])
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("R²", f"{r2:.3f}")
+        with col2:
+            st.metric("Slope", f"{slope:.3f}")
+        with col3:
+            st.metric("Slope p-value", f"{pval_slope:.3f}")
+
+        with st.popover("💡 How to read this"):
+            st.markdown("""
+            - **R²**: Proportion of the variation in the outcome that can be explained by K/D for this BR
+            - **Slope**: Expected change in the outcome for each 1-unit increase in K/D
+            - **p-value**: Probability of seeing a slope at least this extreme if K/D had no real effect
+            """
+                        )
+    else:
+        st.info(f"Not enough data to fit OLS trendline for BR {selected_br}")
+
 else:
-    st.write(f"No data available for BR {selected_br}.")
-
-# regression info
-trendline_results = px.get_trendline_results(scatter_fig)
-if not trendline_results.empty:
-    px_fit_results = trendline_results.iloc[0]["px_fit_results"]
-
-    st.subheader("Linear Regression")
-    st.caption(f"BR **{selected_br}** · Trendline from scatter above")
-
-    # Pull core stats
-    r2 = float(px_fit_results.rsquared)
-    slope = float(np.asarray(px_fit_results.params)[1])  # assuming const + 1 predictor
-    pval_slope = float(np.asarray(px_fit_results.pvalues)[1])
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("R²", f"{r2:.3f}")
-    with col2:
-        st.metric("Slope", f"{slope:.3f}")
-    with col3:
-        st.metric("Slope p-value", f"{pval_slope:.3f}")
-
-    with st.popover("💡 How to read this"):
-        st.markdown("""
-        - **R²**: Proportion of the variation in the outcome that can be explained by K/D for this BR
-        - **Slope**: Expected change in the outcome for each 1-unit increase in K/D
-        - **p-value**: Probability of seeing a slope at least this extreme if K/D had no real effect
-        """)
+    st.info(f"No clustering data available for BR {selected_br}.")
 
 st.divider()
 
@@ -964,7 +1060,12 @@ df_bayes = df_bayes.loc[
 ].copy()
 
 df_bayes['date'] = pd.to_datetime(df_bayes['date'], errors='coerce')
-sixty_days_ago = datetime.now() - timedelta(days=60)
+
+# cutoff based on the newest date
+max_date = df_bayes['date'].max()
+sixty_days_ago = max_date - pd.Timedelta(days=60)
+
+# filter last 60 days from max
 df_bayes = df_bayes.loc[df_bayes['date'] >= sixty_days_ago].copy()
 
 df_bayes = df_bayes.rename(columns={
