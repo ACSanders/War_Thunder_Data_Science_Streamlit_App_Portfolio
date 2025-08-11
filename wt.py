@@ -391,7 +391,7 @@ else:
         orientation="h",
         text="Importance",
         color="Importance",
-        color_continuous_scale="portland",
+        color_continuous_scale="sunsetdark",
         height=400
     )
 
@@ -415,51 +415,6 @@ else:
     fig_importance.update_yaxes(fixedrange=True)
 
     st.plotly_chart(fig_importance, use_container_width=True, config={
-        "scrollZoom": False,
-        "modeBarButtonsToRemove": [
-            "zoom2d","pan2d","select2d","lasso2d",
-            "zoomIn2d","zoomOut2d","autoScale2d","resetScale2d"
-        ]
-    })
-
-    # partial dependency plot
-   
-   # only numeric features (LightGBM expects these as you trained it)
-    num_cols = [c for c in X_train.columns if np.issubdtype(X_train[c].dtype, np.number)]
-    feature_to_plot = st.selectbox("Select feature for PDP", num_cols)
-
-    # compute PDP (average effect)
-    pdp = partial_dependence(
-        estimator=model,
-        X=X_train,
-        features=[feature_to_plot],
-        kind="average",
-        grid_resolution=60
-    )
-
-    # sklearn compatibility: grid values key changed
-    x_vals = pd.Series((pdp.get("grid_values") or pdp.get("values"))[0])
-    y_avg  = pd.Series(pdp["average"][0])
-
-    # plotly line
-    fig_pdp = px.line(
-        x=x_vals, y=y_avg,
-        labels={"x": feature_to_plot, "y": "Predicted RB Win Rate"},
-        markers=True
-    )
-
-    # light mobile-friendly styling
-    fig_pdp.update_layout(
-        template="plotly",
-        margin=dict(l=10, r=10, t=40, b=10),
-        font=dict(size=10),
-        xaxis_title=feature_to_plot,
-        yaxis_title="Predicted RB Win Rate",
-    )
-    fig_pdp.update_xaxes(fixedrange=True)
-    fig_pdp.update_yaxes(fixedrange=True)
-
-    st.plotly_chart(fig_pdp, use_container_width=True, config={
         "scrollZoom": False,
         "modeBarButtonsToRemove": [
             "zoom2d","pan2d","select2d","lasso2d",
