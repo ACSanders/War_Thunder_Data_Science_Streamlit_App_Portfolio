@@ -339,11 +339,19 @@ else:
     # display
     # -------------------------
     st.subheader("LightGBM Model")
-    st.caption("Machine learning model trained to predict win rate for ground vehicles")
+    st.write("Machine learning model trained to predict win rate for ground vehicles")
     c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE",  f"{mae:,.2f}")
     c3.metric("R²",   f"{r2:,.3f}")
+
+    #explanations
+    with st.popover("ℹ Metrics explained"):
+        st.markdown("""
+        **RMSE** → Root Mean Squared Error: measures average size of prediction errors. Same scale as win rate. Large errors are penalized more heavily.  
+        **MAE** → Mean Absolute Error: on average, the model is off by this many win rate points.  
+        **R²** → Proportion of variation in win rate explained by the model (0–1, where higher is better).
+        """)
 
     # st.caption("Training is cached. It only reruns if the data window, filters, or parameters change.")
 
@@ -834,7 +842,7 @@ with st.popover("ℹ About Bayesian A/B Testing"):
     - 95% credible interval for the difference
     """)
 
-st.write("**Select two nations and a BR to run a Bayesian analysis on _win rates**")
+st.write("**Select two nations and a BR to run a Bayesian analysis on win rates**")
 
 # ---------- Bayesian function ----------
 from scipy.stats import t as student_t
