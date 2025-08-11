@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import beta, norm, uniform
+from sklearn.inspection import partial_dependence
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -151,7 +152,7 @@ final_filtered_df = final_filtered_df[
 # plot the rows if there is data
 if final_filtered_df.shape[0] > 0:
 
-    st.write(f'Performance Over Time Based on {selected_metric}**')
+    st.write(f'**Performance Over Time Based on {selected_metric}**')
     # line plot
     fig = px.line(
         final_filtered_df, 
@@ -390,7 +391,7 @@ else:
         orientation="h",
         text="Importance",
         color="Importance",
-        color_continuous_scale="Blues",
+        color_continuous_scale="balance",
         height=400
     )
 
@@ -418,6 +419,44 @@ else:
         "modeBarButtonsToRemove": [
             "zoom2d","pan2d","select2d","lasso2d",
             "zoomIn2d","zoomOut2d","autoScale2d","resetScale2d"
+        ]
+    })
+
+    # partial dependency plot
+    feature_to_plot = st.selectbox("Select feature for PDP", X_train.columns)
+    # compute partial dependence (returns averaged predictions)
+    pdp_results = partial_dependence(model, X_train, [feature_to_plot], grid_resolution=50)
+
+    # extract x (feature values) and y (average prediction)
+    x_vals = pdp_results['values'][0]
+    y_vals = pdp_results['average'][0]
+
+    # make plotly line chart
+    fig_pdp = px.line(
+        x=x_vals,
+        y=y_vals,
+        labels={'x': feature_to_plot, 'y': 'Predicted Win Rate'},
+        markers=True
+    )
+
+    # style for mobile
+    fig_pdp.update_layout(
+        template="plotly",
+        margin=dict(l=10, r=10, t=40, b=10),
+        font=dict(size=10),
+        xaxis_title=feature_to_plot,
+        yaxis_title="Predicted Win Rate"
+    )
+
+    # prevent drag/zoom for mobile
+    fig_pdp.update_xaxes(fixedrange=True)
+    fig_pdp.update_yaxes(fixedrange=True)
+
+    st.plotly_chart(fig_pdp, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
         ]
     })
 
@@ -802,6 +841,9 @@ def filter_and_segment_data(df, key_metrics):
     # ground only
     filtered_df = filtered_df.loc[~filtered_df["cls"].isin(["Fleet", "Aviation"])].copy()
 
+    # drop BR 13+ for ground vehicles
+    filtered_df = filtered_df.loc[pd.to_numeric(filtered_df["rb_br"], errors="coerce") < 13].copy()
+
     # create broad BR category
     filtered_df["br_range"] = np.floor(filtered_df["rb_br"]).astype(int)
     
@@ -844,10 +886,30 @@ df_copy['date'] = pd.to_datetime(df_copy['date'])
 # filter
 aggregated_df = filter_and_segment_data(df_copy, key_metrics)
 
-# user input for br
-selected_br = st.selectbox("Select a BR range for clustering results", list(range(1, 14)))
+# user input for BR ----descending, default to 12
+available_brs = (
+    aggregated_df["br_range"]
+    .dropna()
+    .astype(int)
+    .unique()
+    .tolist()
+)
+# keep only 1–12 just in case
+available_brs = sorted([b for b in available_brs if 1 <= int(b) <= 12], reverse=True)
 
-# filter 
+if not available_brs:
+    st.info("No BRs available for clustering in the selected data window.")
+    st.stop()
+
+default_index = available_brs.index(12) if 12 in available_brs else 0
+selected_br = st.selectbox(
+    "Select a BR range for clustering results",
+    options=available_brs,
+    index=default_index,
+    format_func=lambda x: f"{x:d}"
+)
+
+# filter
 selected_br_data = aggregated_df[aggregated_df['br_range'] == selected_br]
 
 if not selected_br_data.empty:
