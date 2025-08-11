@@ -294,7 +294,7 @@ def train_model(X_train, y_train, params: dict):
 # -------------------------
 # pipeline
 # -------------------------
-xgb_df = get_xgb_df(df_copy)
+xgb_df = get_xgb_df(data)
 
 if xgb_df.empty:
     st.info("No data available (last 15 days • Ground_vehicles) after cleaning.")
