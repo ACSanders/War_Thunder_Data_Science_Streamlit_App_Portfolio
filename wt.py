@@ -150,46 +150,8 @@ final_filtered_df = final_filtered_df[
 
 # plot the rows if there is data
 if final_filtered_df.shape[0] > 0:
- # make boxplot
-    fig_box = px.box(final_filtered_df, 
-                     x='name',  # the categories - vehicles
-                     y=selected_metric,  # metric
-                     color='name',  # color the boxes by vehicle
-                     # title=f"<b>Distribution of {selected_metric} by Vehicle</b>",
-                     labels={'name': 'Vehicle Name', selected_metric: selected_metric})
 
-    # additional updates to help this look better on phones
-    fig_box.update_layout(template = 'plotly',
-                          # title=dict(font=dict(size=16), pad=dict(t=100)), 
-                          xaxis_title=dict(font=dict(size=12)), 
-                          yaxis_title=dict(font=dict(size=12)),
-                          margin=dict(l=10, r=10, t=40, b=50),  # small margins -- should look better on phones
-                          font=dict(size=10),  # smaller font
-                          # dragmode='pan',
-                          legend=dict(orientation='h',
-                                      yanchor='top',
-                                      y=-0.35,
-                                      xanchor='center',
-                                      x=0.5 
-                                     )
-    )
-
-    # lock axes so dragging doesn't mess with scrolling on phones
-    fig_box.update_xaxes(fixedrange=True)
-    fig_box.update_yaxes(fixedrange=True)
-
-    # scroll/drag tools disabled
-    st.plotly_chart(fig_box, use_container_width=True, config={
-        "scrollZoom": False,
-        "modeBarButtonsToRemove": [
-            "zoom2d", "pan2d", "select2d", "lasso2d",
-            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
-        ]
-    })
-
-    st.write('**Performance Over Time**')
-    st.write(f'Selected metric: **{selected_metric}**')
-
+    st.write(f'Performance Over Time Based on {selected_metric}**')
     # line plot
     fig = px.line(
         final_filtered_df, 
@@ -230,12 +192,43 @@ if final_filtered_df.shape[0] > 0:
         ]
     })
 
-    # Show lines chart --- don't use this duplicates
-    # st.plotly_chart(fig, use_container_width=True) 
+    # make boxplot
+    st.write(f'**Distribution of {selected_metric} by Vehicle**')
+    fig_box = px.box(final_filtered_df, 
+                     x='name',  # the categories - vehicles
+                     y=selected_metric,  # metric
+                     color='name',  # color the boxes by vehicle
+                     # title=f"<b>Distribution of {selected_metric} by Vehicle</b>",
+                     labels={'name': 'Vehicle Name', selected_metric: selected_metric})
 
-    # st.write(f'**Distribution of {selected_metric} by Vehicle**')
-    # Show boxplot
-    # st.plotly_chart(fig_box, use_container_width=True)
+    # additional updates to help this look better on phones
+    fig_box.update_layout(template = 'plotly',
+                          # title=dict(font=dict(size=16), pad=dict(t=100)), 
+                          xaxis_title=dict(font=dict(size=12)), 
+                          yaxis_title=dict(font=dict(size=12)),
+                          margin=dict(l=10, r=10, t=40, b=50),  # small margins -- should look better on phones
+                          font=dict(size=10),  # smaller font
+                          # dragmode='pan',
+                          legend=dict(orientation='h',
+                                      yanchor='top',
+                                      y=-0.35,
+                                      xanchor='center',
+                                      x=0.5 
+                                     )
+    )
+
+    # lock axes so dragging doesn't mess with scrolling on phones
+    fig_box.update_xaxes(fixedrange=True)
+    fig_box.update_yaxes(fixedrange=True)
+
+    # scroll/drag tools disabled
+    st.plotly_chart(fig_box, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+        ]
+    })
 
 else:
     st.write("No data available") # display this if selections and dataframe lack data
@@ -763,34 +756,34 @@ def plot_scatter_plot(df, x_metric, y_metric, color_metric):
         x=x_metric,
         y=y_metric,
         color=color_metric,
-        hover_data=['name', 'cls', 'nation'],
-        # add OLS regression line
-        trendline = "ols",
-        # apply it to the overall dataset and not the segments
-        trendline_scope = "overall",
-        # title="<b>Scatter Plot of K/D vs Win Rate Colored by Performance Cluster</b>"
+        hover_data=["name", "cls", "nation"],
+        trendline="ols",
+        trendline_scope="overall",
     )
-    
+
     scatter_fig.update_layout(
         template="plotly",
-        # title=dict(font=dict(size=16), pad=dict(t=100)), 
         xaxis=dict(title=x_metric, title_font=dict(size=12)),
         yaxis=dict(title=y_metric, title_font=dict(size=12)),
         legend_title=dict(text=color_metric, font=dict(size=12)),
         margin=dict(l=10, r=10, t=40, b=10),
         font=dict(size=10),
-        # dragmode="pan",  # panning
-        legend=dict(orientation='h',
-                    yanchor='top',
-                    y=-0.1,
-                    xanchor='center',
-                    x=0.5 
-                    )
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.1,
+            xanchor="center",
+            x=0.5
+        )
     )
-    
+
     # markers
     scatter_fig.update_traces(marker=dict(size=6))
-    
+
+    # lock axes so dragging doesn't hijack mobile scroll
+    scatter_fig.update_xaxes(fixedrange=True)
+    scatter_fig.update_yaxes(fixedrange=True)
+
     return scatter_fig
 
 # the key metrics used for clustering - we can update this
@@ -875,11 +868,19 @@ if not selected_br_data.empty:
     # make scatter plots of vehicles
     scatter_fig = plot_scatter_plot(
         clustering_results,
-        x_metric='RB Ground K/D',
-        y_metric='RB Win Rate', 
-        color_metric='performance_label'
+        x_metric="RB Ground K/D",
+        y_metric="RB Win Rate",
+        color_metric="performance_label"
     )
-    st.plotly_chart(scatter_fig, use_container_width=True)
+
+    # render (mobile-friendly: no drag/zoom; hover kept)
+    st.plotly_chart(scatter_fig, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+        ]
+    })
 
     # regression info
     trendline_results = px.get_trendline_results(scatter_fig)
@@ -891,7 +892,7 @@ if not selected_br_data.empty:
 
         # core stats
         r2 = float(px_fit_results.rsquared)
-        slope = float(np.asarray(px_fit_results.params)[1])  # const + 1 predictor
+        slope = float(np.asarray(px_fit_results.params)[1])      # const + 1 predictor
         pval_slope = float(np.asarray(px_fit_results.pvalues)[1])
 
         col1, col2, col3 = st.columns(3)
@@ -986,56 +987,79 @@ def create_posterior_plots(test_samples, control_samples, label_one, label_two):
         group_labels=[label_one, label_two],
         show_rug=False
     )
-    fig.update_traces(nbinsx=100, autobinx=True, selector={'type': 'histogram'})
+
+    fig.update_traces(nbinsx=100, autobinx=True, selector={"type": "histogram"})
+
     # verticals at posterior means
-    fig.add_vline(x=float(np.mean(test_samples)),  line_width=3, line_dash='dash', line_color='hotpink',
-                  annotation_text=f"mean<br>{np.mean(test_samples):.1f}",  annotation_position='bottom')
-    fig.add_vline(x=float(np.mean(control_samples)), line_width=3, line_dash='dash', line_color='purple',
-                  annotation_text=f"mean<br>{np.mean(control_samples):.1f}", annotation_position='bottom')
+    fig.add_vline(
+        x=float(np.mean(test_samples)),
+        line_width=3, line_dash="dash", line_color="hotpink",
+        annotation_text=f"mean<br>{np.mean(test_samples):.1f}",
+        annotation_position="bottom"
+    )
+    fig.add_vline(
+        x=float(np.mean(control_samples)),
+        line_width=3, line_dash="dash", line_color="purple",
+        annotation_text=f"mean<br>{np.mean(control_samples):.1f}",
+        annotation_position="bottom"
+    )
+
     fig.update_layout(
         autosize=True,
         margin=dict(l=10, r=10, t=40, b=30),
         font=dict(size=10),
         legend=dict(
-            orientation='h',
-            yanchor='top',
+            orientation="h",
+            yanchor="top",
             y=-0.1,
-            xanchor='center',
+            xanchor="center",
             x=0.5
         )
     )
+
+    # lock axes so dragging doesn’t mess with scrolling on phones
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
+
     return fig
 
 def create_difference_plot(diff_samples, credible_interval, label_one, label_two):
     ci_low, ci_high = [round(val, 1) for val in credible_interval]
     diff_med = round(float(np.median(diff_samples)), 1)
+
     fig = ff.create_distplot(
         [diff_samples],
         group_labels=[f"{label_one} - {label_two}"],
-        colors=['aquamarine'],
+        colors=["aquamarine"],
         show_rug=False
     )
-    fig.update_traces(nbinsx=100, autobinx=True, selector={'type': 'histogram'})
-    fig.add_vline(x=ci_low,  line_width=3, line_dash='dash', line_color='red',
-                  annotation_text=f'95% Lower<br>{ci_low}',  annotation_position='top')
-    fig.add_vline(x=ci_high, line_width=3, line_dash='dash', line_color='red',
-                  annotation_text=f'95% Upper<br>{ci_high}', annotation_position='top')
-    fig.add_vline(x=diff_med, line_width=3,                 line_color='dodgerblue',
-                  annotation_text=f'Median<br>{diff_med}',   annotation_position='bottom')
-    fig.add_vline(x=0,       line_width=3, line_dash='dot', line_color='orange',
-                  annotation_text='0',                        annotation_position='bottom')
+    fig.update_traces(nbinsx=100, autobinx=True, selector={"type": "histogram"})
+
+    # reference lines
+    fig.add_vline(x=ci_low,  line_width=3, line_dash="dash", line_color="red",
+                  annotation_text=f"95% Lower<br>{ci_low}",  annotation_position="top")
+    fig.add_vline(x=ci_high, line_width=3, line_dash="dash", line_color="red",
+                  annotation_text=f"95% Upper<br>{ci_high}", annotation_position="top")
+    fig.add_vline(x=diff_med, line_width=3,                line_color="dodgerblue",
+                  annotation_text=f"Median<br>{diff_med}",  annotation_position="bottom")
+    fig.add_vline(x=0,        line_width=3, line_dash="dot", line_color="orange",
+                  annotation_text="0",                       annotation_position="bottom")
+
     fig.update_layout(
         autosize=True,
         margin=dict(l=10, r=10, t=40, b=30),
         font=dict(size=10),
         legend=dict(
-            orientation='h',
-            yanchor='top',
-            y=-0.1,
-            xanchor='center',
-            x=0.5
+            orientation="h",
+            yanchor="top", y=-0.1,
+            xanchor="center", x=0.5
         )
     )
+
+    # lock axes for mobil
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
+
     return fig
 
 ################################################################
@@ -1148,8 +1172,16 @@ else:
     kpi3.metric("95% Credible Interval", f"{lwr:.2f} to {upr:.2f}")
 
     st.subheader(f"Posterior Distributions of Win Rates for {nation_one} and {nation_two}")
+
     fig_a = create_posterior_plots(test_samples, control_samples, nation_one, nation_two)
-    st.plotly_chart(fig_a, use_container_width=True)
+
+    st.plotly_chart(fig_a, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+        ]
+    })
 
     # sanity check with my old version
     # with st.expander("Debug: compare t vs Normal (optional)"):
@@ -1165,8 +1197,17 @@ else:
     st.markdown(
         f"Difference = **{nation_one}** win rate − **{nation_two}** win rate"
     )
+
+    # plot for diff dist
     fig2b = create_difference_plot(diff_samples, credible_interval, nation_one, nation_two)
-    st.plotly_chart(fig2b, use_container_width=True)
+
+    st.plotly_chart(fig2b, use_container_width=True, config={
+        "scrollZoom": False,
+        "modeBarButtonsToRemove": [
+            "zoom2d", "pan2d", "select2d", "lasso2d",
+            "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"
+        ]
+    })
 
     st.success("Bayesian analysis complete.", icon="✅")
 
