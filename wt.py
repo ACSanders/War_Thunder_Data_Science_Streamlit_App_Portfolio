@@ -333,7 +333,7 @@ else:
     # -------------------------
     # display
     # -------------------------
-    st.subheader("LightGBM Model — Performance (cached)")
+    st.subheader("LightGBM Model")
     c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE",  f"{mae:,.2f}")
@@ -343,6 +343,29 @@ else:
 
     st.subheader("Feature Importance")
     st.dataframe(importances.to_frame("importance"))
+
+    importance_df = importances.reset_index()
+    importance_df.columns = ["Feature", "Importance"]
+
+    fig_importance = px.bar(
+        importance_df,
+        x="Importance",
+        y="Feature",
+        orientation="h",
+        text="Importance",
+        color="Importance",
+        color_continuous_scale="Blues",
+        height=400
+    )
+
+    fig_importance.update_layout(
+        yaxis=dict(autorange="reversed"),  # most important at top
+        template="plotly_white",
+        margin=dict(l=10, r=10, t=40, b=40),
+        coloraxis_showscale=False
+    )
+
+    st.plotly_chart(fig_importance, use_container_width=True)
 
     # scatter for sanity check
     with st.expander("Predicted vs Actual (test)"):
