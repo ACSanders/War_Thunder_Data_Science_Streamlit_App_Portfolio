@@ -226,6 +226,9 @@ st.divider()
 def get_xgb_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
+    # ensure my 'date' column is in datetime format
+    df['date'] = pd.to_datetime(df['date'])
+
     # last 15 days
     cutoff = pd.Timestamp.today() - pd.Timedelta(days=15)
     df = df.loc[df['date'] >= cutoff]
@@ -285,7 +288,7 @@ def train_model(X_train, y_train, params: dict):
     model = LGBMRegressor(
         **params,
         n_jobs=-1,
-        random_state=42,
+        random_state=12,
         verbose=-1
     )
     model.fit(X_train, y_train)
