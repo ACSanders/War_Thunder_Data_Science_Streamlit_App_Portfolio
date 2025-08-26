@@ -320,6 +320,66 @@ def train_model(X_train, y_train, params: dict):
 # -------------------------
 # pipeline
 # -------------------------
+
+#########################################################################################
+#########################################################################################
+
+with st.expander("Debug: dates & filters for LGBM", expanded=True):
+    tmp = data.copy()
+    # raw sample
+    st.write("Raw date samples:", tmp['date'].astype(str).head(8).tolist())
+
+    # check if your CSV uses 2-digit years
+    two_digit = tmp['date'].astype(str).str.match(r"\d{1,2}/\d{1,2}/\d{2}$").mean()
+    four_digit = tmp['date'].astype(str).str.match(r"\d{1,2}/\d{1,2}/\d{4}$").mean()
+    st.write({"share_two_digit_year": float(two_digit), "share_four_digit_year": float(four_digit)})
+
+    # parse the two different ways (your trends vs LGBM)
+    d_permissive = pd.to_datetime(tmp['date'], errors='coerce')
+    d_strict = pd.to_datetime(tmp['date'], format="%m/%d/%Y", errors='coerce')
+
+    st.write({
+        "permissive_na_dates": int(d_permissive.isna().sum()),
+        "strict_na_dates_%m/%d/%Y": int(d_strict.isna().sum()),
+        "permissive_max_date": str(d_permissive.max()),
+        "strict_max_date": str(d_strict.max())
+    })
+
+    # now reproduce your LGBM window step-by-step
+    tmp['date_strict'] = d_strict
+    max_date = tmp['date_strict'].max()
+    st.write({"lgbm_max_date": str(max_date)})
+
+    if pd.isna(max_date):
+        st.error("All dates parsed as NaT with the strict %m/%d/%Y format. This will zero the last-15-days window.")
+    else:
+        cutoff = max_date - pd.Timedelta(days=15)
+        st.write({"cutoff": str(cutoff)})
+        mask_15 = tmp['date_strict'] >= cutoff
+        st.write({"rows_total": int(len(tmp)), "rows_last_15d": int(mask_15.sum())})
+
+        # class filter like your function
+        mask_cls = (tmp['cls'] == 'Ground_vehicles')
+        st.write({
+            "rows_ground_all": int(mask_cls.sum()),
+            "rows_ground_last_15d": int((mask_cls & mask_15).sum())
+        })
+
+        # required columns & dropna effect
+        req = ['rb_battles','rb_ground_frags_per_battle','rb_ground_frags_per_death','rb_br','is_premium','nation','rb_win_rate']
+        missing = [c for c in req if c not in tmp.columns]
+        st.write({"missing_required_cols": missing})
+
+        if not missing:
+            sub = tmp.loc[mask_cls & mask_15, req].copy()
+            st.write({
+                "rows_before_dropna": int(len(sub)),
+                "rows_after_dropna": int(sub.dropna().shape[0]),
+                "na_counts": sub.isna().sum().to_dict()
+            })
+##############################################################################################################
+##############################################################################################################
+
 xgb_df = get_xgb_df(data)
 
 if xgb_df.empty:
